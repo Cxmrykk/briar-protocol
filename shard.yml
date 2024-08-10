@@ -1,0 +1,9 @@
+name: briar-protocol
+version: 0.1.0
+
+authors:
+  - Cxmrykk <contact@merrick.cam>
+
+crystal: '>= 1.13.1'
+
+license: MIT
