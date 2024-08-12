@@ -1,15 +1,5 @@
 require "big"
 
-def get_unsigned(value : Int32) : UInt32
-  if value == Int32::MIN
-    (-(value + 1)).to_u32 + 1 # Convert Int32 negative to positive (minus one to avoid overflow)
-  elsif value < 0
-    (-value).to_u32 | 0x80000000.to_u32 # left-most bit set to 1
-  else
-    value.to_u32
-  end
-end
-
 class PacketBuffer
   getter data : Bytes
   getter offset : Int32
