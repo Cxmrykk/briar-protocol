@@ -1,0 +1,3 @@
+[submodule "docs/MCP-source"]
+	path = docs/MCP-source
+	url = https://github.com/Marcelektro/MCP-919
