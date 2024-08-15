@@ -23,7 +23,7 @@ module Packets
   end
 end
 
-# 
+#
 # https://wiki.vg/Data_types_(v47)
 #
 

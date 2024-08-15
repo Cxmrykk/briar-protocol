@@ -1,7 +1,7 @@
 require "uuid"
 
 # Macro to create an EventManager class with custom event definitions
-macro create_event_manager(definitions)
+macro define_event_manager(definitions)
   class EventManager
     # Custom exception for timeout events
     class Timeout < Exception; end

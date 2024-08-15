@@ -1,7 +1,7 @@
 macro define_packet(name, id, definitions)
   class {{name}} < RawPacket
     def initialize({% for definition, index in definitions %}
-      @{{definition[0]}} : {{definition[1]}}{% if index < definitions.size - 1 %},{% end %}
+      @{{definition[0]}} : {{definition[1]}}{% if index < definitions.size - 1 %}, {% end %}
     {% end %})
       buffer = PacketBuffer.new
       {% for definition in definitions %}
@@ -18,6 +18,14 @@ macro define_packet(name, id, definitions)
       {% end %}
       @id = {{id}}
       @data = buffer.data
+    end
+
+    def to_tuple : Tuple({% for definition, index in definitions %}
+    {{definition[1]}}{% if index < definitions.size - 1 %}, {% end %}
+  {% end %})
+    ({% for definition, index in definitions %}
+    @{{definition[0]}}{% if index < definitions.size - 1 %}, {% end %}
+    {% end %})
     end
   end
 end
