@@ -1,28 +1,7 @@
-require "./buffer"
-require "./parser"
+require "./client"
 
-parser = PacketParser.new
-parser.compression = 100
+client = Client.new("test")
 
-buffer = PacketBuffer.new
-#[0, 1, 2, 127, 128, 255, 25565, 2097151, 2147483647].each do |i|
-#  puts i
-#  buffer.write_var_int(i)
-#end
+client.connect("localhost", 25565)
 
-[-1, -2147483648].each do |i|
-  puts i
-  buffer.write_var_int(i)
-end
-
-packet = RawPacket.new(0x00, buffer.data)
-compressed_data = parser.format(packet)
-
-puts packet.slice
-puts "size: #{packet.slice.size}"
-
-puts compressed_data
-puts "size: #{compressed_data.size}"
-
-decompressed_packet = parser.parse(compressed_data)
-puts decompressed_packet.slice
+loop {}
