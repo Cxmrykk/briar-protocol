@@ -1,31 +1,7 @@
 require "log"
 require "compress/zlib"
-
 require "./buffer"
-
-# Not the job of Parser
-#
-# enum ProtocolState
-# end
-
-#
-# RawPacket
-# - Parsed/Formatted packet ready for buffer operatons
-#
-class RawPacket
-  getter id : Int32
-  getter data : Bytes
-
-  def initialize(@id : Int32, @data : Bytes)
-  end
-
-  def slice : Bytes
-    buffer = PacketBuffer.new
-    buffer.write_var_int(@id)
-    buffer.write_byte_array(@data)
-    buffer.data
-  end
-end
+require "./packets"
 
 class PacketParser
   setter compression : Int32?
