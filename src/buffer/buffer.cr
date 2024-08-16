@@ -19,18 +19,19 @@ class PacketBuffer
   end
 
   def read_var_int : Int32
-    value = 0
+    value = 0_u32
     shift = 0
-    byte = 0_u8
 
     loop do
-      byte = read_byte
-      value |= (byte & 0x7F) << (shift * 7)
-      shift += 1
-      break unless (byte & 0x80) != 0
+      temp = read_byte.to_u32
+      value |= (temp & 0x7F) << shift
+      shift += 7
+
+      break if (temp & 0x80) == 0
+      raise "VarInt is too big" if shift >= 35
     end
 
-    value
+    value.unsafe_as(Int32)
   end
 
   def write_var_int(value : Int32)
@@ -49,35 +50,36 @@ class PacketBuffer
     end
   end
 
-  def read_var_long : Int64
-    value = 0_i64
-    shift = 0
-    byte = 0_u8
-
-    loop do
-      byte = read_byte
-      value |= (byte & 0x7F).to_i64 << (shift * 7)
-      shift += 1
-      break unless (byte & 0x80) != 0
-    end
-
-    value
-  end
-
   def write_var_long(value : Int64)
     value = value.unsafe_as(UInt64)
 
     loop do
-      temp = value & 0x7F
+      temp = value & 0x7F_u64
       value >>= 7
 
       if value != 0
-        temp |= 0x80
+        temp |= 0x80_u64
       end
 
       write_byte(temp.to_u8)
       break if value == 0
     end
+  end
+
+  def read_var_long : Int64
+    value = 0_u64
+    shift = 0
+
+    loop do
+      temp = read_byte.to_u64
+      value |= (temp & 0x7F) << shift
+      shift += 7
+
+      break if (temp & 0x80) == 0
+      raise "VarLong is too big" if shift >= 70
+    end
+
+    value.unsafe_as(Int64)
   end
 
   def read_string : String
