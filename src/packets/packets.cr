@@ -2,30 +2,57 @@ require "./types"
 require "./macros"
 require "../buffer"
 
-#
-# Protocol State (packet exchange sequence)
-#
-enum ProtocolState
-  Handshaking
-  Status
-  Login
-  Play
-end
+module Packets
+  include Types
 
-#
-# Packet ID with associated data
-#
-class RawPacket
-  getter id : Int32
-  getter data : Bytes
-
-  def initialize(@id : Int32, @data : Bytes)
+  module Handshaking
+    module S
+      define_packet(Handshake, 0x00, [
+        {protocol_version, Int32, var_int},
+        {address, String, string},
+        {port, Int16, short},
+        {next_state, Int32, var_int},
+      ])
+    end
   end
 
-  def slice : Bytes
-    buffer = PacketBuffer.new
-    buffer.write_var_int(@id)
-    buffer.write_byte_array(@data)
-    buffer.data
+  module Status
+    module C
+      define_packet(Pong, 0x01, [
+        {payload, Int64, long},
+      ])
+    end
+  end
+
+  module Login
+    module C
+      define_packet(LoginSuccess, 0x02, [
+        {uuid, String, string},
+        {username, String, string},
+      ])
+      define_packet(EnableCompression, 0x03, [
+        {threshold, Int32, var_int},
+      ])
+    end
+
+    module S
+      define_packet(LoginStart, 0x00, [
+        {name, String, string},
+      ])
+    end
+  end
+
+  module Play
+    module C
+      define_packet(KeepAlive, 0x00, [
+        {keep_alive_id, Int32, var_int},
+      ])
+    end
+    
+    module S
+      define_packet(KeepAlive, 0x00, [
+        {keep_alive_id, Int32, var_int},
+      ])
+    end
   end
 end

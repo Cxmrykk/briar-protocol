@@ -7,11 +7,13 @@ macro define_event_manager(definitions)
     class Timeout < Exception; end
 
     # Create enums for each event type
-    {% for definition in definitions %}
-      enum {{definition[0]}}
-        {{definition[0]}}
-      end
-    {% end %}
+    module Events
+      {% for definition in definitions %}
+        enum {{definition[0]}}
+          {{definition[0]}}
+        end
+      {% end %}
+    end
 
     # Define argument types for each event
     {% for definition in definitions %}
@@ -27,7 +29,7 @@ macro define_event_manager(definitions)
 
     # Define receive methods for each event type
     {% for definition in definitions %}
-      def receive(name : {{definition[0]}}, timeout : Time::Span? = nil, &block : ({{definition[2].splat}}) -> _)
+      def receive(name : Events::{{definition[0]}}, timeout : Time::Span? = nil, &block : ({{definition[2].splat}}) -> _)
         id = UUID.random
         channel = Channel({{definition[0]}}Args).new
 
@@ -55,7 +57,7 @@ macro define_event_manager(definitions)
 
     # Define receive? methods that return nil on timeout
     {% for definition in definitions %}
-      def receive?(name : {{definition[0]}}, timeout : Time::Span? = nil, &block : ({{definition[2].splat}}) -> _) : {{definition[0]}}?
+      def receive?(name : Events::{{definition[0]}}, timeout : Time::Span? = nil, &block : ({{definition[2].splat}}) -> _) : {{definition[0]}}?
         receive(name, timeout, &block)
       rescue Timeout
         nil
@@ -64,7 +66,7 @@ macro define_event_manager(definitions)
 
     # Define send methods for each event type
     {% for definition in definitions %}
-      def send(name : {{definition[0]}}, *args)
+      def send(name : Events::{{definition[0]}}, *args)
         @channel_{{definition[1]}}.each do |id, channel|
           unless channel.closed?
             channel.send(args)

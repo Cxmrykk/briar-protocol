@@ -1,144 +1,158 @@
-require "./events"
-require "./packets"
+require "log"
+
 require "./parser"
+require "../packets"
 
-define_event_manager([
-  {Handshake, handshake, {Int32, String, Int16, Int32}},
-])
+# Define case structure for handling packets by ID
+macro generate_packet_handler(list)
+  case state
+  {% for current_state in list %}
+  when {{current_state[0]}}
+    case packet.id
+    {% for data in current_state[1] %}
+    when {{data[2]}}
+      {{data[1]}} = {{data[0]}}.new(packet)
+      self.handle({{data[1]}})
+    {% end %}
+    else
+      Log.warn { "Unknown packet ID: #{"0x%02x" % packet.id} (length: #{packet.data.size})" }
+    end
+  {% end %}
+  end
+end
 
-#
-# Formats received packets into structured data
-#
+macro generate_handler(definitions)
+  {% handshaking_packets = definitions[0] %}
+  {% status_packets = definitions[1] %}
+  {% login_packets = definitions[2] %}
+  {% play_packets = definitions[3] %}
 
-class PacketHandler < EventManager
+  # Initialize the packet parser
   def initialize
     @parser = PacketParser.new
   end
 
-  def set_compression(compression : Int32?)
-    @parser.compression = compression
-  end
-
-  #
-  # Defines control expressions for triggering events
-  #
-
-  macro handle_client_bound_event(state, packet, list)
-    case {{state}}
-    {% for current_state in list %}
-      when {{current_state[0]}}
-        {% for data in current_state[1] %}
-        case {{packet}}.id
-          when {{data[2]}}
-            {{data[1]}} = {{data[0]}}.new({{packet}})
-            self.send(:{{data[1]}}, {{data[1]}}.to_tuple)
-        {% end %}
-        end
-    {% end %}
-    end
-  end
-
-  #
-  # Parses a buffer into RawPacket, triggers an event based on it.
-  # Todo: overload with macro for packet types (defined in packets.cr)
-  #
-
-  def receive_client_bound(state : ProtocolState, data : Bytes)
+  # Define the handler for raw packet data
+  def handle(state : ProtocolState, data : Bytes)
     packet = @parser.parse(data)
-    handle_client_bound_event(state, packet, [
-      {Handshaking, [
-        {Handshake, handshake, 0x00},
-      ]},
-      {Status, [
-        {ServerInfo, server_info, 0x00},
-        {Pong, pong, 0x01},
-      ]},
-      {Login, [
-        {Disconnect, disconnect, 0x00},
-        {EncryptionRequest, encryption_request, 0x01},
-        {LoginSuccess, login_success, 0x02},
-        {EnableCompression, enable_compression, 0x03},
-      ]},
-      {Play, [
-        {KeepAlive, keep_alive, 0x00},
-        {JoinGame, join_game, 0x01},
-        {Chat, chat, 0x02},
-        {TimeUpdate, time_update, 0x03},
-        {EntityEquipment, entity_equipment, 0x04},
-        {SpawnPosition, spawn_position, 0x05},
-        {UpdateHealth, update_health, 0x06},
-        {Respawn, respawn, 0x07},
-        {PlayerPosLook, player_pos_look, 0x08},
-        {HeldItemChange, held_item_change, 0x09},
-        {UseBed, use_bed, 0x0A},
-        {Animation, animation, 0x0B},
-        {SpawnPlayer, spawn_player, 0x0C},
-        {CollectItem, collect_item, 0x0D},
-        {SpawnObject, spawn_object, 0x0E},
-        {SpawnMob, spawn_mob, 0x0F},
-        {SpawnPainting, spawn_painting, 0x10},
-        {SpawnExperienceOrb, spawn_experience_orb, 0x11},
-        {EntityVelocity, entity_velocity, 0x12},
-        {DestroyEntities, destroy_entities, 0x13},
-        {Entity, entity, 0x14},
-        {EntityRelativeMove, entity_relative_move, 0x15},
-        {EntityLook, entity_look, 0x16},
-        {EntityLookAndRelativeMove, entity_look_and_relative_move, 0x17},
-        {EntityTeleport, entity_teleport, 0x18},
-        {EntityHeadLook, entity_head_look, 0x19},
-        {EntityStatus, entity_status, 0x1A},
-        {AttachEntity, attach_entity, 0x1B},
-        {EntityMetadata, entity_metadata, 0x1C},
-        {EntityEffect, entity_effect, 0x1D},
-        {RemoveEntityEffect, remove_entity_effect, 0x1E},
-        {SetExperience, set_experience, 0x1F},
-        {EntityProperties, entity_properties, 0x20},
-        {ChunkData, chunk_data, 0x21},
-        {MultiBlockChange, multi_block_change, 0x22},
-        {BlockChange, block_change, 0x23},
-        {BlockAction, block_action, 0x24},
-        {BlockBreakAnim, block_break_anim, 0x25},
-        {MapChunkBulk, map_chunk_bulk, 0x26},
-        {Explosion, explosion, 0x27},
-        {Effect, effect, 0x28},
-        {SoundEffect, sound_effect, 0x29},
-        {Particles, particles, 0x2A},
-        {ChangeGameState, change_game_state, 0x2B},
-        {SpawnGlobalEntity, spawn_global_entity, 0x2C},
-        {OpenWindow, open_window, 0x2D},
-        {CloseWindow, close_window, 0x2E},
-        {SetSlot, set_slot, 0x2F},
-        {WindowItems, window_items, 0x30},
-        {WindowProperty, window_property, 0x31},
-        {ConfirmTransaction, confirm_transaction, 0x32},
-        {UpdateSign, update_sign, 0x33},
-        {Maps, maps, 0x34},
-        {UpdateTileEntity, update_tile_entity, 0x35},
-        {SignEditorOpen, sign_editor_open, 0x36},
-        {Statistics, statistics, 0x37},
-        {PlayerListItem, player_list_item, 0x38},
-        {PlayerAbilities, player_abilities, 0x39},
-        {TabComplete, tab_complete, 0x3A},
-        {ScoreboardObjective, scoreboard_objective, 0x3B},
-        {UpdateScore, update_score, 0x3C},
-        {DisplayScoreboard, display_scoreboard, 0x3D},
-        {Teams, teams, 0x3E},
-        {CustomPayload, custom_payload, 0x3F},
-        {Disconnect, disconnect, 0x40},
-        {ServerDifficulty, server_difficulty, 0x41},
-        {CombatEvent, combat_event, 0x42},
-        {Camera, camera, 0x43},
-        {WorldBorder, world_border, 0x44},
-        {Title, title, 0x45},
-        {SetCompressionLevel, set_compression_level, 0x46},
-        {PlayerListHeaderFooter, player_list_header_footer, 0x47},
-        {ResourcePackSend, resource_pack_send, 0x48},
-        {UpdateEntityNBT, update_entity_nbt, 0x49},
-      ]},
+
+    generate_packet_handler([
+      {ProtocolState::Handshaking, {{handshaking_packets}}},
+      {ProtocolState::Status, {{status_packets}}},
+      {ProtocolState::Login, {{login_packets}}},
+      {ProtocolState::Play, {{play_packets}}},
     ])
   end
+
+  # Define packet handlers for each packet type
+  {% for packets in definitions %}
+    {% for packet in packets %}
+      def handle(packet : {{packet[0]}})
+      end
+    {% end %}
+  {% end %}
 end
 
-#
-# TODO: Receive server bound packets (implemented with server class)
-#
+class ClientHandler
+  include Packets
+
+  # Generate the ClientHandler class
+  generate_handler({
+    # Handshaking packets
+    [
+      # no client-bound handshaking packets
+] of TupleLiteral,
+
+    # Status packets
+    [
+      # {Status::C::ServerInfo, server_info, 0x00},
+      # {Status::C::Pong, pong, 0x01},
+] of TupleLiteral,
+
+    # Login packets
+    [
+      # {Login::C::LoginDisconnect, login_disconnect, 0x00},
+      # {Login::C::EncryptionRequest, encryption_request, 0x01},
+      {Login::C::LoginSuccess, login_success, 0x02},
+      {Login::C::EnableCompression, enable_compression, 0x03},
+    ],
+
+    # Play packets
+    [
+      {Play::C::KeepAlive, keep_alive, 0x00},
+      # {Play::C::JoinGame, join_game, 0x01},
+      # {Play::C::Chat, chat, 0x02},
+      # {Play::C::TimeUpdate, time_update, 0x03},
+      # {Play::C::EntityEquipment, entity_equipment, 0x04},
+      # {Play::C::SpawnPosition, spawn_position, 0x05},
+      # {Play::C::UpdateHealth, update_health, 0x06},
+      # {Play::C::Respawn, respawn, 0x07},
+      # {Play::C::PlayerPosLook, player_pos_look, 0x08},
+      # {Play::C::HeldItemChange, held_item_change, 0x09},
+      # {Play::C::UseBed, use_bed, 0x0A},
+      # {Play::C::Animation, animation, 0x0B},
+      # {Play::C::SpawnPlayer, spawn_player, 0x0C},
+      # {Play::C::CollectItem, collect_item, 0x0D},
+      # {Play::C::SpawnObject, spawn_object, 0x0E},
+      # {Play::C::SpawnMob, spawn_mob, 0x0F},
+      # {Play::C::SpawnPainting, spawn_painting, 0x10},
+      # {Play::C::SpawnExperienceOrb, spawn_experience_orb, 0x11},
+      # {Play::C::EntityVelocity, entity_velocity, 0x12},
+      # {Play::C::DestroyEntities, destroy_entities, 0x13},
+      # {Play::C::Entity, entity, 0x14},
+      # {Play::C::EntityRelativeMove, entity_relative_move, 0x15},
+      # {Play::C::EntityLook, entity_look, 0x16},
+      # {Play::C::EntityLookAndRelativeMove, entity_look_and_relative_move, 0x17},
+      # {Play::C::EntityTeleport, entity_teleport, 0x18},
+      # {Play::C::EntityHeadLook, entity_head_look, 0x19},
+      # {Play::C::EntityStatus, entity_status, 0x1A},
+      # {Play::C::AttachEntity, attach_entity, 0x1B},
+      # {Play::C::EntityMetadata, entity_metadata, 0x1C},
+      # {Play::C::EntityEffect, entity_effect, 0x1D},
+      # {Play::C::RemoveEntityEffect, remove_entity_effect, 0x1E},
+      # {Play::C::SetExperience, set_experience, 0x1F},
+      # {Play::C::EntityProperties, entity_properties, 0x20},
+      # {Play::C::ChunkData, chunk_data, 0x21},
+      # {Play::C::MultiBlockChange, multi_block_change, 0x22},
+      # {Play::C::BlockChange, block_change, 0x23},
+      # {Play::C::BlockAction, block_action, 0x24},
+      # {Play::C::BlockBreakAnim, block_break_anim, 0x25},
+      # {Play::C::MapChunkBulk, map_chunk_bulk, 0x26},
+      # {Play::C::Explosion, explosion, 0x27},
+      # {Play::C::Effect, effect, 0x28},
+      # {Play::C::SoundEffect, sound_effect, 0x29},
+      # {Play::C::Particles, particles, 0x2A},
+      # {Play::C::ChangeGameState, change_game_state, 0x2B},
+      # {Play::C::SpawnGlobalEntity, spawn_global_entity, 0x2C},
+      # {Play::C::OpenWindow, open_window, 0x2D},
+      # {Play::C::CloseWindow, close_window, 0x2E},
+      # {Play::C::SetSlot, set_slot, 0x2F},
+      # {Play::C::WindowItems, window_items, 0x30},
+      # {Play::C::WindowProperty, window_property, 0x31},
+      # {Play::C::ConfirmTransaction, confirm_transaction, 0x32},
+      # {Play::C::UpdateSign, update_sign, 0x33},
+      # {Play::C::Maps, maps, 0x34},
+      # {Play::C::UpdateTileEntity, update_tile_entity, 0x35},
+      # {Play::C::SignEditorOpen, sign_editor_open, 0x36},
+      # {Play::C::Statistics, statistics, 0x37},
+      # {Play::C::PlayerListItem, player_list_item, 0x38},
+      # {Play::C::PlayerAbilities, player_abilities, 0x39},
+      # {Play::C::TabComplete, tab_complete, 0x3A},
+      # {Play::C::ScoreboardObjective, scoreboard_objective, 0x3B},
+      # {Play::C::UpdateScore, update_score, 0x3C},
+      # {Play::C::DisplayScoreboard, display_scoreboard, 0x3D},
+      # {Play::C::Teams, teams, 0x3E},
+      # {Play::C::CustomPayload, custom_payload, 0x3F},
+      # {Play::C::PlayDisconnect, play_disconnect, 0x40},
+      # {Play::C::ServerDifficulty, server_difficulty, 0x41},
+      # {Play::C::CombatEvent, combat_event, 0x42},
+      # {Play::C::Camera, camera, 0x43},
+      # {Play::C::WorldBorder, world_border, 0x44},
+      # {Play::C::Title, title, 0x45},
+      # {Play::C::SetCompressionLevel, set_compression_level, 0x46},
+      # {Play::C::PlayerListHeaderFooter, player_list_header_footer, 0x47},
+      # {Play::C::ResourcePackSend, resource_pack_send, 0x48},
+      # {Play::C::UpdateEntityNBT, update_entity_nbt, 0x49},
+    ],
+  })
+end

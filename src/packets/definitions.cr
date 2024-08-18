@@ -1,27 +1,4 @@
-require "./packets"
 require "./macros"
-
-module Packets
-  module Handshake
-    module S
-      define_packet(Handshake, 0x00, [
-        {protocol_version, Int32, var_int},
-        {address, String, string},
-        {port, Int16, short},
-        {next_state, Int32, var_int},
-      ])
-    end
-  end
-
-  module Status
-  end
-
-  module Login
-  end
-
-  module Play
-  end
-end
 
 #
 # https://wiki.vg/Data_types_(v47)

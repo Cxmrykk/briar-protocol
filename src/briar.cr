@@ -1,11 +1,3 @@
-require "./client"
-
-client = Client.new("test")
-
+require "./common/client"
+client = Client.new("Player123")
 client.connect("localhost", 25565)
-
-client.receive(:login_success) do
-  puts "Client has successfully logged in!"
-end
-
-loop {}
