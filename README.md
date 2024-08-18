@@ -1,13 +1,20 @@
-**Briar** - Experimental WIP Minecraft legacy client project (1.8)
+**Briar** - Experimental WIP Minecraft protocol project\
+(Legacy support: 1.8.9)
 
-**Testing**
+#### Features:
 
-1. Add the dependency to your `shard.yml`:
+- Connect to a 1.8.9 Server as a client (offline mode only)
+- Supports zlib packet compression
+- Login sequence and Keep Alive packet exchange
+ 
+#### Goals:
 
-   ```yaml
-   dependencies:
-     briar-protocol:
-       github: Cxmrykk/briar-protocol
-   ```
+- Support all packets (1.8.9)
+- Microsoft Account Authentication (Client)
+- Server implementation
 
-2. Run `shards install`
+#### Long Term:
+
+If the project reaches a certain stage in development, I might begin working on some of these goals:
+- Protocol support for the latest version, and backwards compatibility
+- Superset projects (Full client or server implementation, for example)
