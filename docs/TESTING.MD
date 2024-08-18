@@ -1,9 +1,9 @@
 ### Note: copy/pasted code during testing development stage used for REFERENCE ONLY
 
-**1. Testing VarInt, packet buffer, packet parser and compression**
+**1. Testing VarInt, VarLong, packet buffer, packet parser and compression**
 ```crystal
 require "./buffer"
-require "./parser"
+require "./common/parser"
 
 #
 # Tests compression and varint values
@@ -35,6 +35,63 @@ puts "size: #{compressed_data.size}"
 
 decompressed_packet = parser.parse(compressed_data)
 puts decompressed_packet.slice
+
+buffer = PacketBuffer.new(decompressed_packet.data)
+[0, 1, 2, 127, 128, 255, 25565, 2097151, 2147483647].each do |i|
+  value = buffer.read_var_int
+  puts "Comparing values: #{value} should equal #{i}"
+end
+
+[-1, -2147483648].each do |i|
+  value = buffer.read_var_int
+  puts "Comparing values: #{value} should equal #{i}"
+end
+```
+```crystal
+require "./buffer"
+require "./common/parser"
+
+#
+# Tests compression and varlong values
+# Should match the sample varlongs
+# 
+
+parser = PacketParser.new
+parser.compression = 100
+
+buffer = PacketBuffer.new
+[0_i64, 1_i64, 2_i64, 127_i64, 128_i64, 255_i64, 25565_i64, 2097151_i64, 2147483647_i64, 9223372036854775807_i64].each do |i|
+  puts i
+  buffer.write_var_long(i)
+end
+
+[-1_i64, -2147483648_i64, -9223372036854775808_i64].each do |i|
+  puts i
+  buffer.write_var_long(i)
+end
+
+packet = RawPacket.new(0x00, buffer.data)
+compressed_data = parser.format(packet)
+
+puts packet.slice
+puts "size: #{packet.slice.size}"
+
+puts compressed_data
+puts "size: #{compressed_data.size}"
+
+decompressed_packet = parser.parse(compressed_data)
+puts decompressed_packet.slice
+
+buffer = PacketBuffer.new(decompressed_packet.data)
+[0_i64, 1_i64, 2_i64, 127_i64, 128_i64, 255_i64, 25565_i64, 2097151_i64, 2147483647_i64, 9223372036854775807_i64].each do |i|
+  value = buffer.read_var_long
+  puts "Comparing values: #{value} should equal #{i}"
+end
+
+[-1_i64, -2147483648_i64, -9223372036854775808_i64].each do |i|
+  value = buffer.read_var_long
+  puts "Comparing values: #{value} should equal #{i}"
+end
 ```
 
 **2. Briar library proof of concept**
