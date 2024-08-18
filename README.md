@@ -18,13 +18,13 @@
 - Login sequence and Keep Alive packet exchange
  
 #### Goals:
-
-- Support all packets (1.8.9)
-- Microsoft Account Authentication (Client)
+For version 1.8.9:
+- Support all server/client bound packets
+- Microsoft Account Authentication
 - Server implementation
 
 #### Long Term:
 
-If the project reaches a certain stage in development, I might begin working on some of these goals:
+If the project reaches a certain stage in development, I might consider working on some of these features:
 - Protocol support for the latest version, and backwards compatibility
 - Superset projects (Full client or server implementation, for example)
