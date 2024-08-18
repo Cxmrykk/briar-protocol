@@ -5,20 +5,21 @@
     </td>
     <td>
       <h2>Briar Protocol</h2>
-      <p>Experimental WIP Minecraft protocol project</p>
-      <p></p>
+      <p>Experimental WIP minecraft protocol project</p>
+      <p><strong>Made for version 1.8.9</strong></p>
     </td>
   </tr>
 </table>
 
 #### Features:
 
-- Connect to a 1.8.9 Server as a client (offline mode only)
+- Connect to a minecraft server as a client (offline mode only)
 - Supports zlib packet compression
 - Login sequence and Keep Alive packet exchange
  
 #### Goals:
-For version 1.8.9:
+
+For the current version:
 - Support all server/client bound packets
 - Microsoft Account Authentication
 - Server implementation
@@ -26,15 +27,5 @@ For version 1.8.9:
 #### Long Term:
 
 If the project reaches a certain stage in development, I might consider working on some of these features:
-- Protocol support for the latest version, and backwards compatibility
-- Superset projects (Full client or server implementation, for example)
-
-#### FAQ
-```
-Why version 1.8.9 and not the latest version?
-- Simpler and therefore much easier to get initially working
-- Still used on popular servers (Hypixel, for example)
-- Unsupported for the majority of client libraries
-
-Although if still interested in the future, I may consider working towards supporting other versions.
-```
+- Protocol support for the latest version
+- Backwards compatibility from 1.8.9 to latest version
