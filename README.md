@@ -1,12 +1,12 @@
 <table>
   <tr>
-    <td width="70">
-      <img src="assets/berries.png" alt="Briar logo" width="60" height="60">
+    <td>
+      <img src="assets/berries.png" alt="Briar logo" width="48" height="48">
     </td>
     <td>
       <h2>Briar Protocol</h2>
-      <p>Experimental WIP Minecraft protocol project<br>
-      (Legacy support: 1.8.9)</p>
+      <p>Experimental WIP Minecraft protocol project</p>
+      <p></p>
     </td>
   </tr>
 </table>
