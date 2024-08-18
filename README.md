@@ -28,3 +28,13 @@ For version 1.8.9:
 If the project reaches a certain stage in development, I might consider working on some of these features:
 - Protocol support for the latest version, and backwards compatibility
 - Superset projects (Full client or server implementation, for example)
+
+#### FAQ
+```
+Why version 1.8.9 and not the latest version?
+- Simpler and therefore much easier to get initially working
+- Still used on popular servers (Hypixel, for example)
+- Unsupported for the majority of client libraries
+
+Although if still interested in the future, I may consider working towards supporting other versions.
+```
