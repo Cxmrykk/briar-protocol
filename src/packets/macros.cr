@@ -12,8 +12,6 @@ macro define_packet(name, id, definitions)
       buffer.write_{{definition[2]}}(@{{definition[0]}})
       {% end %}
       @id = {{id}}
-      puts "defined packet from actual data types: #{@id} or #{{{id}}} {{name}}"
-
       @data = buffer.data
     end
 
@@ -23,8 +21,6 @@ macro define_packet(name, id, definitions)
       @{{definition[0]}} = buffer.read_{{definition[2]}}
       {% end %}
       @id = {{id}}
-      puts "defined packet from RawPacket: #{@id} or #{{{id}}} {{name}}"
-      
       @data = buffer.data
     end
 
