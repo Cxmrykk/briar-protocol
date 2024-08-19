@@ -8,14 +8,19 @@ class PacketBuffer
   setter data : Bytes
   setter offset : Int32
 
-  def initialize(@data : Bytes = Bytes.new(0))
-    @offset = 0
+  def self.var_int_size(value : Int32) : Int32
+    size = 0
+    value = value.unsafe_as(UInt32)
+    while true
+      size += 1
+      value >>= 7
+      break if value == 0
+    end
+    size
   end
 
-  def read_to_end : Bytes
-    array = @data[@offset...@data.size]
-    @offset = @data.size
-    array
+  def initialize(@data : Bytes = Bytes.new(0))
+    @offset = 0
   end
 
   def read_var_int : Int32

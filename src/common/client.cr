@@ -19,6 +19,11 @@ class Client < ClientHandler
     @state = ProtocolState::Handshaking
   end
 
+  def get_length_header(data : Bytes)
+    buffer = PacketBuffer.new(data)
+    buffer.read_var_int
+  end
+
   def write(packet : RawPacket)
     # TODO: error handling
     return unless socket = @socket
@@ -49,7 +54,7 @@ class Client < ClientHandler
 
         # Determine how much of a packet we have received
         length = get_length_header(buffer)
-        length_size = var_int_size(length)
+        length_size = PacketBuffer.var_int_size(length)
         remaining = length - (buffer.size - length_size) # length header value does not include length itself (but buffer itself does, so subtract it)
 
         # Received packet length matches length header
@@ -72,22 +77,6 @@ class Client < ClientHandler
 
       self.handle(@state, buffer)
     end
-  end
-
-  def get_length_header(data : Bytes)
-    buffer = PacketBuffer.new(data)
-    buffer.read_var_int
-  end
-
-  def var_int_size(value : Int32) : Int32
-    size = 0
-    value = value.unsafe_as(UInt32)
-    while true
-      size += 1
-      value >>= 7
-      break if value == 0
-    end
-    size
   end
 
   def connect(host : String, port : Int32 = 25565)
