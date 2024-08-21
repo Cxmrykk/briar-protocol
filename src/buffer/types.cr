@@ -11,10 +11,17 @@ struct Position
   end
 
   def self.from_long(value : Int64)
+    # Allow shift operations to affect sign bit
     value = value.unsafe_as(UInt64)
     x = (value >> 38).unsafe_as(Int64).to_i32
     y = ((value >> 26) & 0xFFF).unsafe_as(Int64).to_i32
     z = (value & 0x3FFFFFF).unsafe_as(Int64).to_i32
+  
+    # Apply sign extension if the most significant bit of z is set
+    if (z & 0x2000000) != 0
+      z = z | -0x4000000
+    end
+  
     Position.new(x, y, z)
   end
 end
