@@ -80,11 +80,11 @@ class ClientHandler
     # Play packets
     [
       {Play::C::KeepAlive, keep_alive, 0x00},
-      # {Play::C::JoinGame, join_game, 0x01},
-      # {Play::C::Chat, chat, 0x02},
-      # {Play::C::TimeUpdate, time_update, 0x03},
-      # {Play::C::EntityEquipment, entity_equipment, 0x04},
-      # {Play::C::SpawnPosition, spawn_position, 0x05},
+      {Play::C::JoinGame, join_game, 0x01},
+      {Play::C::Chat, chat, 0x02},
+      {Play::C::TimeUpdate, time_update, 0x03},
+      {Play::C::EntityEquipment, entity_equipment, 0x04},
+      {Play::C::SpawnPosition, spawn_position, 0x05},
       # {Play::C::UpdateHealth, update_health, 0x06},
       # {Play::C::Respawn, respawn, 0x07},
       # {Play::C::PlayerPosLook, player_pos_look, 0x08},

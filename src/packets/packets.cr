@@ -47,8 +47,33 @@ module Packets
       define_packet(KeepAlive, 0x00, [
         {keep_alive_id, Int32, var_int},
       ])
+      define_packet(JoinGame, 0x01, [
+        {entity_id, Int32, int},
+        {gamemode, UInt8, unsigned_byte},
+        {dimension, Int8, signed_byte},
+        {difficulty, UInt8, unsigned_byte},
+        {max_players, UInt8, unsigned_byte},
+        {level_type, String, string},
+        {reduced_debug_info, Bool, boolean},
+      ])
+      define_packet(Chat, 0x02, [
+        {json_data, String, string},
+        {position, Int8, signed_byte},
+      ])
+      define_packet(TimeUpdate, 0x03, [
+        {world_age, Int64, long},
+        {time_of_day, Int64, long},
+      ])
+      define_packet(EntityEquipment, 0x04, [
+        {entity_id, Int32, var_int},
+        {slot, Int16, short},
+        {item, Slot, slot},
+      ])
+      define_packet(SpawnPosition, 0x05, [
+        {location, Position, position},
+      ])
     end
-    
+
     module S
       define_packet(KeepAlive, 0x00, [
         {keep_alive_id, Int32, var_int},
