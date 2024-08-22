@@ -243,17 +243,33 @@ class PacketBuffer
   end
 
   def read_angle : Angle
-    Angle.new(read_byte, read_byte)
+    read_unsigned_byte
   end
 
   def write_angle(angle : Angle)
-    write_byte(angle.pitch)
-    write_byte(angle.yaw)
+    write_unsigned_byte(angle)
+  end
+  
+  def read_uuid : UUID
+    most_significant_bits = read_long
+    least_significant_bits = read_long
+  
+    uuid_bytes = IO::Memory.new(16)
+    uuid_bytes.write_bytes(most_significant_bits, IO::ByteFormat::BigEndian)
+    uuid_bytes.write_bytes(least_significant_bits, IO::ByteFormat::BigEndian)
+  
+    UUID.new(uuid_bytes.to_slice)
+  end
+
+  def write_uuid(uuid : UUID)
+    io = IO::Memory.new(uuid.bytes)
+    write_long(io.read_bytes(Int64, IO::ByteFormat::BigEndian))
+    write_long(io.read_bytes(Int64, IO::ByteFormat::BigEndian))
   end
 
   #
   # NBT Functions
-  # 
+  #
 
   def read_nbt(type : Int8? = nil) : Nbt::Value?
     if type.nil?
@@ -334,7 +350,7 @@ class PacketBuffer
     id = read_short
 
     if id < 0
-      nil if id == -1
+      return nil if id == -1
       raise "Slot ID provided was less than -1 (got #{id})"
     end
 
@@ -351,20 +367,20 @@ class PacketBuffer
       while @offset < end_offset
         byte1 = @data[@offset].to_u8
         @offset += 1
-  
-        if byte1 & 0x80 == 0  # 1-byte format
+
+        if byte1 & 0x80 == 0 # 1-byte format
           str << byte1.chr unless byte1 == 0
-        elsif byte1 & 0xE0 == 0xC0  # 2-byte format
+        elsif byte1 & 0xE0 == 0xC0 # 2-byte format
           byte2 = @data[@offset].to_u8
           @offset += 1
-          
+
           codepoint = ((byte1 & 0x1F) << 6) | (byte2 & 0x3F)
           str << codepoint.chr
-        elsif byte1 & 0xF0 == 0xE0  # 3-byte format
+        elsif byte1 & 0xF0 == 0xE0 # 3-byte format
           byte2 = @data[@offset].to_u8
           byte3 = @data[@offset + 1].to_u8
           @offset += 2
-          
+
           codepoint = ((byte1 & 0x0F) << 12) | ((byte2 & 0x3F) << 6) | (byte3 & 0x3F)
           str << codepoint.chr
         else
@@ -372,8 +388,65 @@ class PacketBuffer
         end
       end
     end
-    
+
     result
+  end
+
+  #
+  # Entity Metadata Functions
+  #
+
+  def read_metadata : Metadata::Data
+    entries = Array(Metadata::Entry).new
+
+    loop do
+      entry = read_watchable_object
+      break if entry.nil?
+      entries << entry
+    end
+
+    if entries.empty?
+      raise "Metadata object was empty. Server must send at least one form of metadata!"
+    end
+
+    entries
+  end
+
+  private def read_watchable_object : Metadata::Entry?
+    type_and_id = read_unsigned_byte
+
+    if type_and_id == 127
+      return nil
+    end
+
+    type = ((type_and_id & 0xE0) >> 5).to_i32
+    id = (type_and_id & 0x1F).to_i32
+
+    value = read_watchable_object_value(type)
+    {type: type, id: id, value: value}
+  end
+
+  private def read_watchable_object_value(type : Int32) : Metadata::Value
+    case type
+    when 0
+      read_signed_byte
+    when 1
+      read_short
+    when 2
+      read_int
+    when 3
+      read_float
+    when 4
+      read_string
+    when 5
+      read_slot
+    when 6
+      read_position
+    when 7
+      {x: read_float, y: read_float, z: read_float}
+    else
+      raise "Unknown watchable object type: #{type}"
+    end
   end
 
   # ... other read/write methods for different data types ...

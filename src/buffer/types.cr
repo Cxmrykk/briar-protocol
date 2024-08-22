@@ -1,3 +1,7 @@
+require "big"
+
+alias Angle = UInt8
+
 struct Position
   property x : Int32
   property y : Int32
@@ -16,21 +20,13 @@ struct Position
     x = (value >> 38).unsafe_as(Int64).to_i32
     y = ((value >> 26) & 0xFFF).unsafe_as(Int64).to_i32
     z = (value & 0x3FFFFFF).unsafe_as(Int64).to_i32
-  
+
     # Apply sign extension if the most significant bit of z is set
     if (z & 0x2000000) != 0
       z = z | -0x4000000
     end
-  
+
     Position.new(x, y, z)
-  end
-end
-
-struct Angle
-  property pitch : UInt8
-  property yaw : UInt8
-
-  def initialize(@pitch, @yaw)
   end
 end
 
@@ -76,4 +72,24 @@ module Nbt
     Compound
     IntArray
   end
+end
+
+module Metadata
+  alias Rotations = NamedTuple(x: Float32, y: Float32, z: Float32)
+
+  alias Value = Int8 |
+                Int16 |
+                Int32 |
+                Int64 |
+                Float32 |
+                Float64 |
+                Bytes |
+                String |
+                Slot? |
+                Position |
+                Rotations
+
+  alias Entry = NamedTuple(type: Int32, id: Int32, value: Value)
+
+  alias Data = Array(Entry)
 end

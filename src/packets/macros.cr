@@ -1,7 +1,11 @@
 macro define_packet(name, id, definitions)
   class {{name}} < RawPacket
     {% for definition in definitions %}
-    getter {{definition[0]}} : {{definition[1]}}
+      {% if definition.size == 4 %}
+        getter {{definition[0]}} : {{definition[1]}}
+      {% else %}
+        getter {{definition[0]}} : {{definition[1]}}
+      {% end %}
     {% end %}
 
     def initialize({% for definition, index in definitions %}
@@ -9,7 +13,13 @@ macro define_packet(name, id, definitions)
     {% end %})
       buffer = PacketBuffer.new
       {% for definition in definitions %}
-      buffer.write_{{definition[2]}}(@{{definition[0]}})
+        {% if definition.size == 4 %}
+          if {{definition[3]}}
+            buffer.write_{{definition[2]}}(@{{definition[0]}}.not_nil!)
+          end
+        {% else %}
+          buffer.write_{{definition[2]}}(@{{definition[0]}})
+        {% end %}
       {% end %}
       @id = {{id}}
       @data = buffer.data
@@ -18,7 +28,15 @@ macro define_packet(name, id, definitions)
     def initialize(packet : RawPacket)
       buffer = PacketBuffer.new(packet.data)
       {% for definition in definitions %}
-      @{{definition[0]}} = buffer.read_{{definition[2]}}
+        {% if definition.size == 4 %}
+          @{{definition[0]}} = if {{definition[3]}}
+            buffer.read_{{definition[2]}}
+          else
+            nil
+          end
+        {% else %}
+          @{{definition[0]}} = buffer.read_{{definition[2]}}
+        {% end %}
       {% end %}
       @id = {{id}}
       @data = buffer.data
