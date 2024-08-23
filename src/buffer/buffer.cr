@@ -1,5 +1,6 @@
 require "big"
 require "./types"
+require "./macros"
 
 class PacketBuffer
   getter data : Bytes
@@ -8,6 +9,14 @@ class PacketBuffer
   setter data : Bytes
   setter offset : Int32
 
+  def initialize(@data : Bytes = Bytes.new(0))
+    @offset = 0
+  end
+
+  #
+  # External Functions
+  # 
+  
   def self.var_int_size(value : Int32) : Int32
     size = 0
     value = value.unsafe_as(UInt32)
@@ -19,9 +28,15 @@ class PacketBuffer
     size
   end
 
-  def initialize(@data : Bytes = Bytes.new(0))
-    @offset = 0
-  end
+  #
+  # Define Array functions for relevant types
+  # 
+  
+  define_array_functions(Int32, read_var_int, write_var_int)
+
+  #
+  # Primative Data Types
+  # 
 
   def read_var_int : Int32
     value = 0_u32
@@ -233,6 +248,10 @@ class PacketBuffer
     end
     @offset += array.size
   end
+
+  #
+  # Special Data Types
+  # 
 
   def read_position : Position
     Position.from_long(read_long)
