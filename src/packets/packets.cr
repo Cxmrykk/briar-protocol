@@ -2,6 +2,10 @@ require "./types"
 require "./macros"
 require "../buffer"
 
+#
+# define_packet
+# 
+
 module Packets
   include Types
 
@@ -185,15 +189,10 @@ module Packets
         {velocity_z, Int16, short}
       ])
 
-      #define_packet(DestroyEntities, 0x13, [
-      #  {count, Int32, var_int},
-      #  {entity_ids, Array(Int32), array(var_int)}
-      #])
-
-      #
-      # TODO: fully implement arrays
-      # 
-
+      define_packet(DestroyEntities, 0x13, [
+        {count, Int32, var_int},
+        {entity_ids, Array(Int32), var_int_array, @count >= 0, "@count", "raise \"DestroyEntities: 'count' must be 0 or higher.\""}
+      ])
     end
 
     module S
