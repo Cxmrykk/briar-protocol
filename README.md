@@ -1,15 +1,10 @@
-<table>
-  <tr>
-    <td>
-      <img src="assets/berries.png" alt="Briar logo" width="48" height="48">
-    </td>
-    <td>
-      <h2>Briar Protocol</h2>
-      <p>Experimental WIP minecraft protocol project</p>
-      <p><strong>Made for version 1.8.9</strong></p>
-    </td>
-  </tr>
-</table>
+<div align="left">
+  <img src="assets/berries.png" alt="Briar logo" width="64" height="64">
+</div>
+
+## Briar Protocol
+Experimental WIP minecraft protocol project\
+Supports: `1.8.9`
 
 #### Features:
 
@@ -28,4 +23,3 @@ For the current version:
 
 If the project reaches a certain stage in development, I might consider working on some of these features:
 - Protocol support for the latest version
-- Backwards compatibility from 1.8.9 to latest version
