@@ -93,3 +93,8 @@ module Metadata
 
   alias Data = Array(Entry)
 end
+
+module Attribute
+  alias Modifier = NamedTuple(uuid: UUID, amount: Float64, operation: Int8)
+  alias Property = NamedTuple(key: String, value: Float64, modifier_count: Int32, modifiers: Array(Modifier))
+end

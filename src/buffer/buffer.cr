@@ -14,9 +14,9 @@ class PacketBuffer
   end
 
   #
-  # External Functions
-  # 
-  
+  # External Miscellaneous Functions
+  #
+
   def self.var_int_size(value : Int32) : Int32
     size = 0
     value = value.unsafe_as(UInt32)
@@ -30,13 +30,15 @@ class PacketBuffer
 
   #
   # Define Array functions for relevant types
-  # 
-  
+  #
+
   define_array_functions(Int32, read_var_int, write_var_int)
+  define_array_functions(Attribute::Modifier, read_modifier, write_modifier)
+  define_array_functions(Attribute::Property, read_property, write_property)
 
   #
   # Primative Data Types
-  # 
+  #
 
   def read_var_int : Int32
     value = 0_u32
@@ -251,7 +253,7 @@ class PacketBuffer
 
   #
   # Special Data Types
-  # 
+  #
 
   def read_position : Position
     Position.from_long(read_long)
@@ -268,15 +270,15 @@ class PacketBuffer
   def write_angle(angle : Angle)
     write_unsigned_byte(angle)
   end
-  
+
   def read_uuid : UUID
     most_significant_bits = read_long
     least_significant_bits = read_long
-  
+
     uuid_bytes = IO::Memory.new(16)
     uuid_bytes.write_bytes(most_significant_bits, IO::ByteFormat::BigEndian)
     uuid_bytes.write_bytes(least_significant_bits, IO::ByteFormat::BigEndian)
-  
+
     UUID.new(uuid_bytes.to_slice)
   end
 
@@ -424,10 +426,6 @@ class PacketBuffer
       entries << entry
     end
 
-    if entries.empty?
-      raise "Metadata object was empty. Server must send at least one form of metadata!"
-    end
-
     entries
   end
 
@@ -466,6 +464,35 @@ class PacketBuffer
     else
       raise "Unknown watchable object type: #{type}"
     end
+  end
+
+  #
+  # Special Array Types
+  #
+
+  def read_modifier : Attribute::Modifier
+    {uuid: read_uuid, amount: read_double, operation: read_signed_byte}
+  end
+
+  def write_modifier(modifier : Attribute::Modifier)
+    write_uuid(modifier[:uuid])
+    write_double(modifier[:amount])
+    write_signed_byte(modifier[:operation])
+  end
+
+  def read_property : Attribute::Property
+    key = read_string
+    value = read_double
+    modifier_count = read_var_int
+    modifiers = read_modifier_array(modifier_count)
+    {key: key, value: value, modifier_count: modifier_count, modifiers: modifiers}
+  end
+
+  def write_property(property : Attribute::Property)
+    write_string(property[:key])
+    write_double(property[:value])
+    write_var_int(property[:modifier_count])
+    write_modifier_array(property[:modifiers])
   end
 
   # ... other read/write methods for different data types ...
