@@ -4,12 +4,13 @@ require "../buffer"
 
 #
 # define_packet
-# 
+#
 
 module Packets
   include Types
 
   alias Meta = Metadata::Data
+  alias Property = Attribute::Property
 
   module Handshaking
     module S
@@ -24,6 +25,10 @@ module Packets
 
   module Status
     module C
+      define_packet(ServerInfo, 0x00, [
+        {json_response, String, string},
+      ])
+
       define_packet(Pong, 0x01, [
         {payload, Int64, long},
       ])
@@ -32,6 +37,18 @@ module Packets
 
   module Login
     module C
+      define_packet(LoginDisconnect, 0x00, [
+        {reason, String, string},
+      ])
+
+      define_packet(EncryptionRequest, 0x01, [
+        {server_id, String, string},
+        {public_key_length, Int32, var_int},
+        {public_key, Bytes, byte_array, @public_key_length >= 0, "@public_key_length", "raise \"EncryptionRequest: Public Key length must be 0 or higher.\""},
+        {verify_token_length, Int32, var_int},
+        {verify_token, Bytes, byte_array, @verify_token_length >= 0, "@verify_token_length", "raise \"EncryptionRequest: Verify Token length must be 0 or higher.\""},
+      ])
+
       define_packet(LoginSuccess, 0x02, [
         {uuid, String, string},
         {username, String, string},
@@ -130,12 +147,12 @@ module Packets
         {yaw, Angle, angle},
         {pitch, Angle, angle},
         {current_item, Int16, short},
-        {metadata, Meta, metadata}
+        {metadata, Meta, metadata},
       ])
-      
+
       define_packet(CollectItem, 0x0D, [
         {collected_entity_id, Int32, var_int},
-        {collector_entity_id, Int32, var_int}
+        {collector_entity_id, Int32, var_int},
       ])
 
       define_packet(SpawnObject, 0x0E, [
@@ -149,7 +166,7 @@ module Packets
         {object_data, Int32, int},
         {velocity_x, Int16?, short, @object_data != 0},
         {velocity_y, Int16?, short, @object_data != 0},
-        {velocity_z, Int16?, short, @object_data != 0}
+        {velocity_z, Int16?, short, @object_data != 0},
       ])
 
       define_packet(SpawnMob, 0x0F, [
@@ -164,14 +181,14 @@ module Packets
         {velocity_x, Int16, short},
         {velocity_y, Int16, short},
         {velocity_z, Int16, short},
-        {metadata, Meta, metadata}
+        {metadata, Meta, metadata},
       ])
 
       define_packet(SpawnPainting, 0x10, [
         {entity_id, Int32, var_int},
         {title, String, string}, # TODO: Max length 13
         {location, Position, position},
-        {direction, UInt8, unsigned_byte}
+        {direction, UInt8, unsigned_byte},
       ])
 
       define_packet(SpawnExperienceOrb, 0x11, [
@@ -179,19 +196,104 @@ module Packets
         {x, Int32, int},
         {y, Int32, int},
         {z, Int32, int},
-        {count, Int16, short}
+        {count, Int16, short},
       ])
 
       define_packet(EntityVelocity, 0x12, [
         {entity_id, Int32, var_int},
         {velocity_x, Int16, short},
         {velocity_y, Int16, short},
-        {velocity_z, Int16, short}
+        {velocity_z, Int16, short},
       ])
 
       define_packet(DestroyEntities, 0x13, [
         {count, Int32, var_int},
-        {entity_ids, Array(Int32), var_int_array, @count >= 0, "@count", "raise \"DestroyEntities: 'count' must be 0 or higher.\""}
+        {entity_ids, Array(Int32), var_int_array, @count >= 0, "@count", "raise \"DestroyEntities: 'count' must be 0 or higher.\""},
+      ])
+
+      define_packet(Entity, 0x14, [
+        {entity_id, Int32, var_int},
+      ])
+
+      define_packet(EntityRelativeMove, 0x15, [
+        {entity_id, Int32, var_int},
+        {delta_x, Int8, signed_byte},
+        {delta_y, Int8, signed_byte},
+        {delta_z, Int8, signed_byte},
+        {on_ground, Bool, boolean},
+      ])
+
+      define_packet(EntityLook, 0x16, [
+        {entity_id, Int32, var_int},
+        {yaw, Angle, angle},
+        {pitch, Angle, angle},
+        {on_ground, Bool, boolean},
+      ])
+
+      define_packet(EntityLookAndRelativeMove, 0x17, [
+        {entity_id, Int32, var_int},
+        {delta_x, Int8, signed_byte},
+        {delta_y, Int8, signed_byte},
+        {delta_z, Int8, signed_byte},
+        {yaw, Angle, angle},
+        {pitch, Angle, angle},
+        {on_ground, Bool, boolean},
+      ])
+
+      define_packet(EntityTeleport, 0x18, [
+        {entity_id, Int32, var_int},
+        {x, Int32, int},
+        {y, Int32, int},
+        {z, Int32, int},
+        {yaw, Angle, angle},
+        {pitch, Angle, angle},
+        {on_ground, Bool, boolean},
+      ])
+
+      define_packet(EntityHeadLook, 0x19, [
+        {entity_id, Int32, var_int},
+        {head_yaw, Angle, angle},
+      ])
+
+      define_packet(EntityStatus, 0x1A, [
+        {entity_id, Int32, int},
+        {entity_status, Int8, signed_byte},
+      ])
+
+      define_packet(AttachEntity, 0x1B, [
+        {entity_id, Int32, int},
+        {vehicle_id, Int32, int},
+        {leash, Bool, boolean},
+      ])
+
+      define_packet(EntityMetadata, 0x1C, [
+        {entity_id, Int32, var_int},
+        {metadata, Meta, metadata},
+      ])
+
+      define_packet(EntityEffect, 0x1D, [
+        {entity_id, Int32, var_int},
+        {effect_id, Int8, signed_byte},
+        {amplifier, Int8, signed_byte},
+        {duration, Int32, var_int},
+        {hide_particles, Bool, boolean},
+      ])
+
+      define_packet(RemoveEntityEffect, 0x1E, [
+        {entity_id, Int32, var_int},
+        {effect_id, Int8, signed_byte},
+      ])
+
+      define_packet(SetExperience, 0x1F, [
+        {experience_bar, Float32, float},
+        {level, Int32, var_int},
+        {total_experience, Int32, var_int},
+      ])
+      
+      define_packet(EntityProperties, 0x20, [
+        {entity_id, Int32, var_int},
+        {property_count, Int32, int},
+        {properties, Array(Property), property_array, @property_count >= 0, "@property_count", "raise \"EntityProperties: 'property_count' must be 0 or higher.\""}
       ])
     end
 
