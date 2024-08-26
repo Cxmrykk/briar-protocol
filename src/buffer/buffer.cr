@@ -33,8 +33,13 @@ class PacketBuffer
   #
 
   define_array_functions(Int32, read_var_int, write_var_int)
+  define_array_functions(UInt16, read_unsigned_short, write_unsigned_short)
+  define_array_functions(Slot, read_slot, write_slot)
   define_array_functions(Attribute::Modifier, read_modifier, write_modifier)
   define_array_functions(Attribute::Property, read_property, write_property)
+  define_array_functions(Chunk::Meta, read_chunk_meta, write_chunk_meta)
+  define_array_functions(BlockRecord, read_block_record, write_block_record)
+  define_array_functions(ExplosionRecord, read_explosion_record, write_explosion_record)
 
   #
   # Primative Data Types
@@ -367,18 +372,17 @@ class PacketBuffer
     (0...length).map { read_int }
   end
 
-  def read_slot : Slot?
+  def read_slot : Slot
     id = read_short
+    return nil if id == -1
+    raise "Slot ID provided was less than -1 (got #{id})" if id < -1
 
-    if id < 0
-      return nil if id == -1
-      raise "Slot ID provided was less than -1 (got #{id})"
-    end
-
-    item_count = read_signed_byte
-    item_damage = read_short
-    nbt = read_nbt
-    Slot.new(id, item_count, item_damage, nbt)
+    SlotValue.new(
+      id: id,
+      item_count: read_signed_byte,
+      item_damage: read_short,
+      nbt: read_nbt
+    )
   end
 
   private def read_modified_utf8_string : String
@@ -440,7 +444,12 @@ class PacketBuffer
     id = (type_and_id & 0x1F).to_i32
 
     value = read_watchable_object_value(type)
-    {type: type, id: id, value: value}
+
+    {
+      type:  type,
+      id:    id,
+      value: value,
+    }
   end
 
   private def read_watchable_object_value(type : Int32) : Metadata::Value
@@ -460,7 +469,11 @@ class PacketBuffer
     when 6
       read_position
     when 7
-      {x: read_float, y: read_float, z: read_float}
+      {
+        x: read_float,
+        y: read_float,
+        z: read_float,
+      }
     else
       raise "Unknown watchable object type: #{type}"
     end
@@ -471,7 +484,11 @@ class PacketBuffer
   #
 
   def read_modifier : Attribute::Modifier
-    {uuid: read_uuid, amount: read_double, operation: read_signed_byte}
+    {
+      uuid:      read_uuid,
+      amount:    read_double,
+      operation: read_signed_byte,
+    }
   end
 
   def write_modifier(modifier : Attribute::Modifier)
@@ -481,11 +498,12 @@ class PacketBuffer
   end
 
   def read_property : Attribute::Property
-    key = read_string
-    value = read_double
-    modifier_count = read_var_int
-    modifiers = read_modifier_array(modifier_count)
-    {key: key, value: value, modifier_count: modifier_count, modifiers: modifiers}
+    {
+      key:            read_string,
+      value:          read_double,
+      modifier_count: (mc = read_var_int),
+      modifiers:      read_modifier_array(mc),
+    }
   end
 
   def write_property(property : Attribute::Property)
@@ -493,6 +511,96 @@ class PacketBuffer
     write_double(property[:value])
     write_var_int(property[:modifier_count])
     write_modifier_array(property[:modifiers])
+  end
+
+  #
+  # Chunk Data
+  #
+
+  def read_chunk_meta : Chunk::Meta
+    {
+      chunk_x:          read_int,
+      chunk_z:          read_int,
+      primary_bit_mask: read_unsigned_short,
+    }
+  end
+
+  def read_chunk_array_from_meta(meta : Array(Chunk::Meta), sky_light_sent : Bool) : Array(Chunk::Column)
+    meta.map do |chunk_meta|
+      read_chunk(chunk_meta[:primary_bit_mask], sky_light_sent)
+    end
+  end
+
+  def read_chunk(primary_bit_mask : UInt16, size_or_sky_light : Int32 | Bool) : Chunk::Column
+    sky_light_sent = begin
+      case size_or_sky_light
+      when Int32
+        is_sky_light_sent?(primary_bit_mask, size_or_sky_light)
+      when Bool
+        size_or_sky_light
+      else
+        false
+      end
+    end
+
+    sections = (0...16).map_with_index do |section_y|
+      if (primary_bit_mask & (1 << section_y)) != 0
+        read_chunk_section(sky_light_sent)
+      else
+        nil
+      end
+    end
+
+    {
+      sections: sections,
+      biomes:   read_byte_array(256),
+    }
+  end
+
+  private def read_chunk_section(sky_light_sent : Bool) : Chunk::Section
+    {
+      blocks:      read_unsigned_short_array(4096),
+      block_light: read_nibble_array,
+      sky_light:   sky_light_sent ? read_nibble_array : nil,
+    }
+  end
+
+  private def read_nibble_array : Chunk::NibbleArray
+    bytes = read_byte_array(2048)
+    Chunk::NibbleArray.new(bytes)
+  end
+
+  # Calculate expected size without sky light:
+  # - Chunk data (8192 bytes) + Block light (2048 bytes) per set bit in primary_bit_mask
+  # - Plus 256 bytes for biomes
+  # If actual chunk_data_size is larger, it likely includes sky light (additional 2048 bytes per section)
+  private def is_sky_light_sent?(primary_bit_mask : UInt16, chunk_data_size : Int32) : Bool
+    expected_size = primary_bit_mask.popcount.to_i32 * (8192 + 2048) + 256
+    chunk_data_size > expected_size
+  end
+
+  #
+  # Block Change Record
+  #
+
+  def read_block_record : BlockRecord
+    {
+      horizontal_pos: read_unsigned_byte,
+      y:              read_unsigned_byte,
+      block_id:       read_var_int,
+    }
+  end
+
+  #
+  # Explosion Record
+  #
+
+  def read_explosion_record : ExplosionRecord
+    {
+      x_offset: read_signed_byte,
+      y_offset: read_signed_byte,
+      z_offset: read_signed_byte,
+    }
   end
 
   # ... other read/write methods for different data types ...

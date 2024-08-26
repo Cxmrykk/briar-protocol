@@ -95,7 +95,7 @@ module Packets
       define_packet(EntityEquipment, 0x04, [
         {entity_id, Int32, var_int},
         {slot, Int16, short},
-        {item, Slot?, slot},
+        {item, Slot, slot},
       ])
 
       define_packet(SpawnPosition, 0x05, [
@@ -289,11 +289,152 @@ module Packets
         {level, Int32, var_int},
         {total_experience, Int32, var_int},
       ])
-      
+
       define_packet(EntityProperties, 0x20, [
         {entity_id, Int32, var_int},
         {property_count, Int32, int},
-        {properties, Array(Property), property_array, @property_count >= 0, "@property_count", "raise \"EntityProperties: 'property_count' must be 0 or higher.\""}
+        {properties, Array(Property), property_array, @property_count >= 0, "@property_count", "raise \"EntityProperties: 'property_count' must be 0 or higher.\""},
+      ])
+
+      define_packet(ChunkData, 0x21, [
+        {chunk_x, Int32, int},
+        {chunk_z, Int32, int},
+        {continuous, Bool, boolean},
+        {primary_bit_mask, UInt16, unsigned_short},
+        {size, Int32, var_int},
+        {chunk_data, Chunk::Column, chunk, @size >= 0, "@primary_bit_mask, @size", "raise \"ChunkData: 'size' must be 0 or higher.\""},
+      ])
+
+      define_packet(MultiBlockChange, 0x22, [
+        {chunk_x, Int32, int},
+        {chunk_z, Int32, int},
+        {record_count, Int32, var_int},
+        {records, Array(BlockRecord), block_record_array, @record_count >= 0, "@record_count", "raise \"MultiBlockChange: 'record_count' must be 0 or higher.\""},
+      ])
+
+      define_packet(BlockChange, 0x23, [
+        {location, Position, position},
+        {block_id, Int32, var_int},
+      ])
+
+      define_packet(BlockAction, 0x24, [
+        {location, Position, position},
+        {byte_1, UInt8, unsigned_byte},
+        {byte_2, UInt8, unsigned_byte},
+        {block_type, Int32, var_int},
+      ])
+
+      define_packet(BlockBreakAnim, 0x25, [
+        {entity_id, Int32, var_int},
+        {location, Position, position},
+        {destroy_stage, Int8, signed_byte},
+      ])
+
+      define_packet(MapChunkBulk, 0x26, [
+        {sky_light_sent, Bool, boolean},
+        {column_count, Int32, var_int},
+        {chunk_meta, Array(Chunk::Meta), chunk_meta_array, @column_count >= 0, "@column_count", "raise \"MapChunkBulk: 'column_count' must be 0 or higher.\""},
+        {chunk_data, Array(Chunk::Column), chunk_array_from_meta, true, "@chunk_meta, @sky_light_sent", "raise \"\""},
+      ])
+
+      define_packet(Explosion, 0x27, [
+        {x, Float32, float},
+        {y, Float32, float},
+        {z, Float32, float},
+        {radius, Float32, float},
+        {record_count, Int32, int},
+        {records, Array(ExplosionRecord), explosion_record_array, @record_count >= 0, "@record_count", "raise \"Explosion: 'record_count' must be 0 or higher.\""},
+        {player_motion_x, Float32, float},
+        {player_motion_y, Float32, float},
+        {player_motion_z, Float32, float},
+      ])
+
+      define_packet(Effect, 0x28, [
+        {effect_id, Int32, int},
+        {location, Position, position},
+        {effect_data, Int32, int},
+        {disable_relative_volume, Bool, boolean},
+      ])
+
+      define_packet(SoundEffect, 0x29, [
+        {sound_name, String, string},
+        {effect_pos_x, Int32, int},
+        {effect_pos_y, Int32, int},
+        {effect_pos_z, Int32, int},
+        {volume, Float32, float},
+        {pitch, UInt8, unsigned_byte},
+      ])
+
+      define_packet(Particles, 0x2A, [
+        {particle_id, Int32, int},
+        {long_distance, Bool, boolean},
+        {x, Float32, float},
+        {y, Float32, float},
+        {z, Float32, float},
+        {x_offset, Float32, float},
+        {y_offset, Float32, float},
+        {z_offset, Float32, float},
+        {particle_data, Float32, float},
+        {particle_count, Int32, int},
+        # Not implemented; Length is dependant on particle_id value
+        # {particle_metadata, Array(Int32), var_int_array, ...}
+      ])
+
+      define_packet(ChangeGameState, 0x2B, [
+        {reason, UInt8, unsigned_byte},
+        {value, Float32, float}
+      ])
+
+      define_packet(SpawnGlobalEntity, 0x2C, [
+        {entity_id, Int32, var_int},
+        {entity_type, Int8, signed_byte},
+        {x, Int32, int},
+        {y, Int32, int},
+        {z, Int32, int}
+      ])
+
+      define_packet(OpenWindow, 0x2D, [
+        {window_id, UInt8, unsigned_byte},
+        {window_type, String, string},
+        {window_title, String, string},
+        {slot_count, UInt8, unsigned_byte},
+        {entity_id, Int32?, int, @window_type == "EntityHorse"}
+      ])
+
+      define_packet(CloseWindow, 0x2E, [
+        {window_id, UInt8, unsigned_byte}
+      ])
+
+      define_packet(SetSlot, 0x2F, [
+        {window_id, Int8, signed_byte},
+        {slot, Int16, short},
+        {slot_data, Slot, slot}
+      ])
+
+      define_packet(WindowItems, 0x30, [
+        {window_id, UInt8, unsigned_byte},
+        {count, Int16, short},
+        {slot_data, Array(Slot), slot_array, @count >= 0, "@count", "raise \"WindowItems: 'count' must be 0 or higher.\""}
+      ])
+
+      define_packet(WindowProperty, 0x31, [
+        {window_id, UInt8, unsigned_byte},
+        {window_property, Int16, short},
+        {value, Int16, short}
+      ])
+
+      define_packet(ConfirmTransaction, 0x32, [
+        {window_id, Int8, signed_byte},
+        {action_number, Int16, short},
+        {accepted, Bool, boolean}
+      ])
+
+      define_packet(UpdateSign, 0x33, [
+        {location, Position, position},
+        {line_1, String, string},
+        {line_2, String, string},
+        {line_3, String, string},
+        {line_4, String, string}
       ])
     end
 

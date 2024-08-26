@@ -1,6 +1,7 @@
 require "big"
 
 alias Angle = UInt8
+alias Chat = String
 
 struct Position
   property x : Int32
@@ -30,15 +31,13 @@ struct Position
   end
 end
 
-struct Slot
-  property id : Int16
-  property item_count : Int8
-  property item_damage : Int16
-  property nbt : Nbt::Value?
+alias SlotValue = NamedTuple(
+  id: Int16,
+  item_count: Int8,
+  item_damage: Int16,
+  nbt: Nbt::Value?)
 
-  def initialize(@id, @item_count, @item_damage, @nbt)
-  end
-end
+alias Slot = Nil | SlotValue
 
 module Nbt
   alias Tag = Nil |
@@ -95,6 +94,61 @@ module Metadata
 end
 
 module Attribute
-  alias Modifier = NamedTuple(uuid: UUID, amount: Float64, operation: Int8)
-  alias Property = NamedTuple(key: String, value: Float64, modifier_count: Int32, modifiers: Array(Modifier))
+  alias Modifier = NamedTuple(
+    uuid: UUID,
+    amount: Float64,
+    operation: Int8)
+
+  alias Property = NamedTuple(
+    key: String,
+    value: Float64,
+    modifier_count: Int32,
+    modifiers: Array(Modifier))
 end
+
+module Chunk
+  alias Column = NamedTuple(
+    sections: Array(Section?),
+    biomes: Bytes)
+
+  alias Section = NamedTuple(
+    blocks: Array(UInt16),
+    block_light: NibbleArray,
+    sky_light: NibbleArray?)
+
+  alias Meta = NamedTuple(
+    chunk_x: Int32,
+    chunk_z: Int32,
+    primary_bit_mask: UInt16)
+
+  struct NibbleArray
+    property data : Bytes
+
+    def initialize(@data : Bytes)
+    end
+
+    # Returns a value ranging from 0-15 (4 bits)
+    def [](index : Int32) : UInt8
+      byte_index = index >> 1
+      nibble_index = index & 1
+
+      byte = @data[byte_index].to_u8
+
+      if nibble_index == 0
+        byte & 0x0F
+      else
+        (byte >> 4) & 0x0F
+      end
+    end
+  end
+end
+
+alias BlockRecord = NamedTuple(
+  horizontal_pos: UInt8,
+  y: UInt8,
+  block_id: Int32)
+
+alias ExplosionRecord = NamedTuple(
+  x_offset: Int8,
+  y_offset: Int8,
+  z_offset: Int8)
