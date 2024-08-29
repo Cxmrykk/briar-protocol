@@ -34,12 +34,18 @@ class PacketBuffer
 
   define_array_functions(Int32, read_var_int, write_var_int)
   define_array_functions(UInt16, read_unsigned_short, write_unsigned_short)
+  define_array_functions(UInt8, read_unsigned_byte, write_unsigned_byte)
+  define_array_functions(String, read_string, write_string)
   define_array_functions(Slot, read_slot, write_slot)
   define_array_functions(Attribute::Modifier, read_modifier, write_modifier)
-  define_array_functions(Attribute::Property, read_property, write_property)
+  define_array_functions(Attribute::Property, read_att_property, write_att_property)
   define_array_functions(Chunk::Meta, read_chunk_meta, write_chunk_meta)
   define_array_functions(BlockRecord, read_block_record, write_block_record)
   define_array_functions(ExplosionRecord, read_explosion_record, write_explosion_record)
+  define_array_functions(MapIcon, read_map_icon, write_map_icon)
+  define_array_functions(Statistic, read_statistic, write_statistic)
+  define_array_functions(PlayerList::Property, read_pl_property, write_pl_property)
+  define_array_functions(PlayerList::Value, read_player, write_player, action)
 
   #
   # Primative Data Types
@@ -256,6 +262,12 @@ class PacketBuffer
     @offset += array.size
   end
 
+  def read_remaining_bytes : Bytes
+    array = @data[@offset, @data.size - @offset]
+    @offset = @data.size
+    array
+  end
+
   #
   # Special Data Types
   #
@@ -320,32 +332,30 @@ class PacketBuffer
 
   private def read_tag(id : Int8) : Nbt::Tag?
     case Nbt::ID.new(id)
-    when .end?
+    in .end?
       nil
-    when .byte?
+    in .byte?
       read_signed_byte
-    when .short?
+    in .short?
       read_short
-    when .int?
+    in .int?
       read_int
-    when .long?
+    in .long?
       read_long
-    when .float?
+    in .float?
       read_float
-    when .double?
+    in .double?
       read_double
-    when .byte_array?
+    in .byte_array?
       read_byte_array(read_int)
-    when .string?
+    in .string?
       read_modified_utf8_string
-    when .list?
+    in .list?
       read_list
-    when .compound?
+    in .compound?
       read_compound
-    when .int_array?
+    in .int_array?
       read_int_array
-    else
-      raise "Unknown NBT tag ID: #{id}"
     end
   end
 
@@ -497,7 +507,7 @@ class PacketBuffer
     write_signed_byte(modifier[:operation])
   end
 
-  def read_property : Attribute::Property
+  def read_att_property : Attribute::Property
     {
       key:            read_string,
       value:          read_double,
@@ -506,7 +516,7 @@ class PacketBuffer
     }
   end
 
-  def write_property(property : Attribute::Property)
+  def write_att_property(property : Attribute::Property)
     write_string(property[:key])
     write_double(property[:value])
     write_var_int(property[:modifier_count])
@@ -534,12 +544,10 @@ class PacketBuffer
   def read_chunk(primary_bit_mask : UInt16, size_or_sky_light : Int32 | Bool) : Chunk::Column
     sky_light_sent = begin
       case size_or_sky_light
-      when Int32
+      in Int32
         is_sky_light_sent?(primary_bit_mask, size_or_sky_light)
-      when Bool
+      in Bool
         size_or_sky_light
-      else
-        false
       end
     end
 
@@ -601,6 +609,141 @@ class PacketBuffer
       y_offset: read_signed_byte,
       z_offset: read_signed_byte,
     }
+  end
+
+  #
+  # Map Icon
+  #
+
+  def read_map_icon : MapIcon
+    {
+      icon_data: read_signed_byte,
+      x:         read_signed_byte,
+      z:         read_signed_byte,
+    }
+  end
+
+  def read_statistic : Statistic
+    {
+      name:  read_string,
+      value: read_var_int,
+    }
+  end
+
+  #
+  # Player List
+  #
+
+  def read_player(action : Int32) : PlayerList::Value
+    {
+      uuid:   read_uuid,
+      action: read_pl_action(action),
+    }
+  end
+
+  private def read_pl_action(action : Int32) : PlayerList::Action
+    case PlayerList::ID.new(action)
+    in .add_player?
+      {
+        name:              read_string,
+        property_count:    (pc = read_var_int),
+        properties:        read_pl_property_array(pc),
+        gamemode:          read_var_int,
+        ping:              read_var_int,
+        has_display_name?: (hdn = read_boolean),
+        display_name:      hdn ? read_string : nil,
+      }
+    in .update_gamemode?
+      {
+        gamemode: read_var_int,
+      }
+    in .update_latency?
+      {
+        ping: read_var_int,
+      }
+    in .update_display_name?
+      {
+        has_display_name?: (hdn = read_boolean),
+        display_name:      hdn ? read_string : nil,
+      }
+    in .remove_player?
+      nil
+    end
+  end
+
+  private def read_pl_property : PlayerList::Property
+    {
+      name:      read_string,
+      value:     read_string,
+      signed?:   (s = read_boolean),
+      signature: s ? read_string : nil,
+    }
+  end
+
+  #
+  # World Border
+  #
+
+  def read_wb_action(action : Int32) : WorldBorder::Action
+    case WorldBorder::ID.new(action)
+    in .set_size?
+      {
+        radius: read_double,
+      }
+    in .lerp_size?
+      {
+        old_radius: read_double,
+        new_radius: read_double,
+        speed:      read_var_long,
+      }
+    in .set_center?
+      {
+        x: read_double,
+        z: read_double,
+      }
+    in .initialize?
+      {
+        x:                  read_double,
+        z:                  read_double,
+        old_radius:         read_double,
+        new_radius:         read_double,
+        speed:              read_var_long,
+        portal_tp_boundary: read_var_int,
+        warning_time:       read_var_int,
+        warning_blocks:     read_var_int,
+      }
+    in .set_warning_time?
+      {
+        warning_time: read_var_int,
+      }
+    in .set_warning_blocks?
+      {
+        warning_blocks: read_var_int,
+      }
+    end
+  end
+
+  #
+  # Title
+  #
+
+  def read_title_action(action : Int32) : Title::Action
+    case Title::ID.new(action)
+    in .set_title?
+      {text: read_string}
+    in .set_subtitle?
+      {text: read_string}
+    in .set_times_display?
+      {
+        fade_in:  read_int,
+        stay:     read_int,
+        fade_out: read_int,
+      }
+    in .hide?
+      nil
+    in .reset?
+      nil
+    end
   end
 
   # ... other read/write methods for different data types ...

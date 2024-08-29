@@ -152,3 +152,148 @@ alias ExplosionRecord = NamedTuple(
   x_offset: Int8,
   y_offset: Int8,
   z_offset: Int8)
+
+alias MapIcon = NamedTuple(
+  icon_data: Int8,
+  x: Int8,
+  z: Int8)
+
+alias Statistic = NamedTuple(
+  name: String,
+  value: Int32)
+
+module PlayerList
+  module Action_
+    alias Value = AddPlayer |
+                  UpdateGamemode |
+                  UpdateLatency |
+                  UpdateDisplayName |
+                  RemovePlayer
+
+    alias Property = NamedTuple(
+      name: String,
+      value: String,
+      signed?: Bool,
+      signature: String?)
+
+    alias AddPlayer = NamedTuple(
+      name: String,
+      property_count: Int32,
+      properties: Array(Property),
+      gamemode: Int32,
+      ping: Int32,
+      has_display_name?: Bool,
+      display_name: String?)
+
+    alias UpdateGamemode = NamedTuple(
+      gamemode: Int32)
+
+    alias UpdateLatency = NamedTuple(
+      ping: Int32)
+
+    alias UpdateDisplayName = NamedTuple(
+      has_display_name?: Bool,
+      display_name: String?)
+
+    # No fields
+    alias RemovePlayer = Nil
+  end
+
+  enum ID
+    AddPlayer
+    UpdateGamemode
+    UpdateLatency
+    UpdateDisplayName
+    RemovePlayer
+  end
+
+  alias Action = Action_::Value
+  alias Property = Action_::Property
+
+  alias Value = NamedTuple(
+    uuid: UUID,
+    action: Action)
+end
+
+module WorldBorder
+  module Action_
+    alias Value = SetSize |
+                  LerpSize |
+                  SetCenter |
+                  Initialize |
+                  SetWarningTime |
+                  SetWarningBlocks
+
+    alias SetSize = NamedTuple(
+      radius: Float64)
+
+    alias LerpSize = NamedTuple(
+      old_radius: Float64,
+      new_radius: Float64,
+      speed: Int64)
+
+    alias SetCenter = NamedTuple(
+      x: Float64,
+      z: Float64)
+
+    alias Initialize = NamedTuple(
+      x: Float64,
+      z: Float64,
+      old_radius: Float64,
+      new_radius: Float64,
+      speed: Int64,
+      portal_tp_boundary: Int32,
+      warning_time: Int32,
+      warning_blocks: Int32)
+
+    alias SetWarningTime = NamedTuple(
+      warning_time: Int32)
+
+    alias SetWarningBlocks = NamedTuple(
+      warning_blocks: Int32)
+  end
+
+  enum ID
+    SetSize
+    LerpSize
+    SetCenter
+    Initialize
+    SetWarningTime
+    SetWarningBlocks
+  end
+
+  alias Action = Action_::Value
+end
+
+module Title
+  module Action_
+    alias Value = SetTitle |
+                  SetSubtitle |
+                  SetTimesDisplay |
+                  Hide |
+                  Reset
+
+    alias SetTitle = NamedTuple(text: String)
+
+    alias SetSubtitle = NamedTuple(text: String)
+
+    alias SetTimesDisplay = NamedTuple(
+      fade_in: Int32,
+      stay: Int32,
+      fade_out: Int32)
+
+    alias Hide = Nil
+
+    alias Reset = Nil
+  end
+
+  enum ID
+    SetTitle
+    SetSubtitle
+    SetTimesDisplay
+    Hide
+    Reset
+  end
+
+  alias Action = Action_::Value
+end
