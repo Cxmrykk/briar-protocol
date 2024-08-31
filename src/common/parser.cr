@@ -6,7 +6,7 @@ require "../packets"
 
 alias RawPacket = Packets::RawPacket
 
-class PacketParser
+struct PacketParser
   def initialize
     @compression = nil
   end
@@ -84,7 +84,7 @@ class PacketParser
     end
   end
 
-  class Compressed
+  struct Compressed
     @length : Int32
     @data_length : Int32
     @id : Int32
@@ -162,7 +162,7 @@ class PacketParser
     end
   end
 
-  class Uncompressed
+  struct Uncompressed
     @length : Int32
     @id : Int32
     @data : Bytes
