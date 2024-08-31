@@ -33,6 +33,14 @@ module Packets
         {payload, Int64, long},
       ])
     end
+
+    module S
+      define_packet(Request, 0x00)
+
+      define_packet(Ping, 0x01, [
+        {payload, Int64, long},
+      ])
+    end
   end
 
   module Login
@@ -62,6 +70,13 @@ module Packets
     module S
       define_packet(LoginStart, 0x00, [
         {name, String, string},
+      ])
+
+      define_packet(EncryptionResponse, 0x01, [
+        {shared_secret_length, Int32, var_int},
+        {shared_secret, Bytes, byte_array, @shared_secret_length >= 0, "@shared_secret_length", "raise \"EncryptionResponse: Shared Secret length must be 0 or higher.\""},
+        {verify_token_length, Int32, var_int},
+        {verify_token, Bytes, byte_array, @verify_token_length >= 0, "@verify_token_length", "raise \"EncryptionResponse: Verify Token length must be 0 or higher.\""},
       ])
     end
   end
