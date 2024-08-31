@@ -2,19 +2,16 @@ require "big"
 require "./types"
 require "./macros"
 
-class PacketBuffer
+struct PacketBuffer
   getter data : Bytes
   getter offset : Int32
-
-  setter data : Bytes
-  setter offset : Int32
 
   def initialize(@data : Bytes = Bytes.new(0))
     @offset = 0
   end
 
   #
-  # External Miscellaneous Functions
+  # External
   #
 
   def self.var_int_size(value : Int32) : Int32
@@ -29,7 +26,7 @@ class PacketBuffer
   end
 
   #
-  # Define Array functions for relevant types
+  # Array Types (only for relevant packets)
   #
 
   define_array_functions(Int32, read_var_int, write_var_int)
@@ -48,7 +45,7 @@ class PacketBuffer
   define_array_functions(PlayerList::Value, read_player, write_player, action)
 
   #
-  # Primative Data Types
+  # Primitive Data Types
   #
 
   def read_var_int : Int32
@@ -269,7 +266,7 @@ class PacketBuffer
   end
 
   #
-  # Special Data Types
+  # Position
   #
 
   def read_position : Position
@@ -280,6 +277,10 @@ class PacketBuffer
     write_long(position.to_long)
   end
 
+  #
+  # Angle
+  # 
+
   def read_angle : Angle
     read_unsigned_byte
   end
@@ -287,6 +288,10 @@ class PacketBuffer
   def write_angle(angle : Angle)
     write_unsigned_byte(angle)
   end
+
+  #
+  # UUID
+  # 
 
   def read_uuid : UUID
     most_significant_bits = read_long
@@ -306,7 +311,7 @@ class PacketBuffer
   end
 
   #
-  # NBT Functions
+  # NBT and subtypes
   #
 
   def read_nbt(type : Int8? = nil) : Nbt::Value?
@@ -428,7 +433,7 @@ class PacketBuffer
   end
 
   #
-  # Entity Metadata Functions
+  # Entity Metadata and subtypes
   #
 
   def read_metadata : Metadata::Data
@@ -490,7 +495,7 @@ class PacketBuffer
   end
 
   #
-  # Special Array Types
+  # Attribute Modifiers and Properties
   #
 
   def read_modifier : Attribute::Modifier
@@ -524,7 +529,7 @@ class PacketBuffer
   end
 
   #
-  # Chunk Data
+  # Chunk Data and subtypes
   #
 
   def read_chunk_meta : Chunk::Meta
@@ -588,7 +593,7 @@ class PacketBuffer
   end
 
   #
-  # Block Change Record
+  # Block Record
   #
 
   def read_block_record : BlockRecord
@@ -623,6 +628,10 @@ class PacketBuffer
     }
   end
 
+  #
+  # Statistic
+  # 
+
   def read_statistic : Statistic
     {
       name:  read_string,
@@ -631,7 +640,7 @@ class PacketBuffer
   end
 
   #
-  # Player List
+  # Player List and subtypes
   #
 
   def read_player(action : Int32) : PlayerList::Value
