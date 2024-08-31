@@ -516,7 +516,7 @@ module Packets
 
       define_packet(CustomPayload, 0x3F, [
         {channel, String, string},
-        {remaining_data, Bytes, remaining_bytes},
+        {channel_data, Bytes, remaining_bytes}, # data length cannot be known from type alone
       ])
 
       define_packet(PlayDisconnect, 0x40, [
@@ -572,6 +572,152 @@ module Packets
     module S
       define_packet(KeepAlive, 0x00, [
         {keep_alive_id, Int32, var_int},
+      ])
+
+      define_packet(Chat, 0x01, [
+        {message, String, string},
+      ])
+
+      define_packet(UseEntity, 0x02, [
+        {target, Int32, var_int},
+        {type, Int32, var_int},
+        {x, Float32?, float, @target == 2},
+        {y, Float32?, float, @target == 2},
+        {z, Float32?, float, @target == 2},
+      ])
+
+      define_packet(Player, 0x03, [
+        {on_ground, Bool, boolean},
+      ])
+
+      define_packet(PlayerPosition, 0x04, [
+        {x, Float64, double},
+        {y, Float64, double},
+        {z, Float64, double},
+        {on_ground, Bool, boolean},
+      ])
+
+      define_packet(PlayerLook, 0x05, [
+        {yaw, Float32, float},
+        {pitch, Float32, float},
+        {on_ground, Bool, boolean},
+      ])
+
+      define_packet(PlayerPosLook, 0x06, [
+        {x, Float64, double},
+        {y, Float64, double},
+        {z, Float64, double},
+        {yaw, Float32, float},
+        {pitch, Float32, float},
+        {on_ground, Bool, boolean},
+      ])
+
+      define_packet(PlayerDigging, 0x07, [
+        {status, Int8, signed_byte},
+        {location, Position, position},
+        {face, Int8, signed_byte},
+      ])
+
+      define_packet(PlayerBlockPlacement, 0x08, [
+        {location, Position, position},
+        {face, Int8, signed_byte},
+        {held_item, Slot, slot},
+        {cursor_x, Int8, signed_byte},
+        {cursor_y, Int8, signed_byte},
+        {cursor_z, Int8, signed_byte},
+      ])
+
+      define_packet(HeldItemChange, 0x09, [
+        {slot, Int16, short},
+      ])
+
+      define_packet(Animation, 0x0A)
+
+      define_packet(EntityAction, 0x0B, [
+        {entity_id, Int32, var_int},
+        {action_id, Int32, var_int},
+        {action_parameter, Int32, var_int},
+      ])
+
+      define_packet(SteerInput, 0x0C, [
+        {sideways, Float32, float},
+        {forward, Float32, float},
+        {flags, UInt8, unsigned_byte},
+      ])
+
+      define_packet(CloseWindow, 0x0D, [
+        {window_id, UInt8, unsigned_byte},
+      ])
+
+      define_packet(ClickWindow, 0x0E, [
+        {window_id, UInt8, unsigned_byte},
+        {slot, Int16, short},
+        {button, Int8, signed_byte},
+        {action, Int16, short},
+        {mode, Int8, signed_byte},
+        {item, Slot, slot},
+      ])
+
+      define_packet(ConfirmTransaction, 0x0F, [
+        {window_id, Int8, signed_byte},
+        {action, Int16, short},
+        {accepted, Bool, boolean},
+      ])
+
+      define_packet(CreativeInventoryAction, 0x10, [
+        {slot, Int16, short},
+        {item, Slot, slot},
+      ])
+
+      define_packet(EnchantItem, 0x11, [
+        {window_id, Int8, signed_byte},
+        {enchantment, Int8, signed_byte},
+      ])
+
+      define_packet(UpdateSign, 0x12, [
+        {location, Position, position},
+        {line_1, String, string},
+        {line_2, String, string},
+        {line_3, String, string},
+        {line_4, String, string},
+      ])
+
+      define_packet(PlayerAbilities, 0x13, [
+        {flags, Int8, signed_byte},
+        {flying_speed, Float32, float},
+        {walking_speed, Float32, float},
+      ])
+
+      define_packet(TabComplete, 0x14, [
+        {text, String, string},
+        {has_position, Bool, boolean},
+        {looked_at_block, Position?, position, @has_position == true},
+      ])
+
+      define_packet(ClientSettings, 0x15, [
+        {locale, String, string},
+        {view_distance, Int8, signed_byte},
+        {chat_mode, Int8, signed_byte},
+        {chat_colours, Bool, boolean},
+        {skin_parts, UInt8, unsigned_byte},
+      ])
+
+      define_packet(ClientStatus, 0x16, [
+        {action, Int32, var_int},
+      ])
+
+      define_packet(CustomPayload, 0x17, [
+        {channel, String, string},
+        {channel_data, Bytes, remaining_bytes}, # data length cannot be known from type alone
+      ])
+
+      define_packet(Spectate, 0x18, [
+        {target, UUID, uuid},
+      ])
+
+      define_packet(ResourcePackStatus, 0x19, [
+        {hash, String, string},
+        {result, Int32, var_int},
       ])
     end
   end
