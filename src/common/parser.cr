@@ -40,11 +40,8 @@ struct PacketParser
 
       # Send as uncompressed packet, in compressed packet format
       if data_length < @compression.not_nil!
-        # Create a temporary buffer to calculate packet length
-        buffer = PacketBuffer.new
-        buffer.write_var_int(0) # If Data Length is set to zero, then the packet is uncompressed
-        buffer.write_byte_array(data)
-        length = buffer.data.size
+        # If Data Length is set to zero, then the packet is uncompressed
+        length = PacketBuffer.var_int_size(0) + data.size
 
         # Format the final packet buffer
         buffer = PacketBuffer.new
@@ -56,12 +53,7 @@ struct PacketParser
         # Compress the packet before sending
       else
         compressed_data = IO::Memory.new.tap { |io| Compress::Zlib::Writer.open(io, &.write(data)) }.to_slice
-
-        # Create a temporary buffer to calculate packet length
-        buffer = PacketBuffer.new
-        buffer.write_var_int(data_length)
-        buffer.write_byte_array(compressed_data)
-        length = buffer.data.size
+        length = PacketBuffer.var_int_size(data_length) + compressed_data.size
 
         # Format the final packet buffer
         buffer = PacketBuffer.new
@@ -91,7 +83,6 @@ struct PacketParser
     @data : Bytes
 
     def initialize(data : Bytes, compression : Int32)
-      # TODO: handle case where varint fails to read
       buffer = PacketBuffer.new(data)
       @length = buffer.read_var_int
       @data_length = buffer.read_var_int
@@ -99,8 +90,6 @@ struct PacketParser
       # Contents are uncompressed (ID + data)
       if @data_length == 0
         @id = buffer.read_var_int
-
-        # TODO: handle case where buffer size overflows
         size = uncompressed_data_size(@length, @data_length, @id)
         @data = buffer.read_byte_array(size)
       else
@@ -109,24 +98,28 @@ struct PacketParser
           Log.warn { "Data length was lower than compression threshold" }
         end
 
-        # TODO: handle case where buffer size overflows
+        # Determine size of compressed data and read it
         size = compressed_data_size(@length, @data_length)
         compressed_data = buffer.read_byte_array(size)
 
-        # TODO: handle case where decompression fails
+        # Apply decompression and read the data
         id_and_data = zlib_to_bytes(compressed_data)
         buffer = PacketBuffer.new(id_and_data)
 
-        # TODO: handle case where varint fails to read
+        # Read the packet ID
         @id = buffer.read_var_int
 
-        # TODO: handle case where buffer size overflows
+        # Calculate the remaining data size and read the bytes
         size = decompressed_data_size(@data_length, @id)
         @data = buffer.read_byte_array(size)
       end
     end
 
-    def zlib_to_bytes(compressed_data : Bytes) : Bytes
+    def to_raw : RawPacket
+      RawPacket.new(@id, @data)
+    end
+
+    private def zlib_to_bytes(compressed_data : Bytes) : Bytes
       io = IO::Memory.new(compressed_data)
       Compress::Zlib::Reader.open(io) do |zlib|
         decompressed = IO::Memory.new
@@ -136,29 +129,18 @@ struct PacketParser
     end
 
     # Gets only the size of the uncompressed data
-    def uncompressed_data_size(length, data_length, id)
-      temp = PacketBuffer.new
-      temp.write_var_int(data_length)
-      temp.write_var_int(id)
-      length - temp.data.size # Subtract ID length from packet length
+    private def uncompressed_data_size(length, data_length, id)
+      length - PacketBuffer.var_int_size(data_length) - PacketBuffer.var_int_size(id)
     end
 
     # Gets the size of the compressed ID + data
-    def compressed_data_size(length, data_length)
-      temp = PacketBuffer.new
-      temp.write_var_int(data_length)
-      length - temp.data.size
+    private def compressed_data_size(length, data_length)
+      length - PacketBuffer.var_int_size(data_length)
     end
 
     # Gets only the size of the decompressed data
-    def decompressed_data_size(data_length, id)
-      temp = PacketBuffer.new
-      temp.write_var_int(id)
-      data_length - temp.data.size
-    end
-
-    def to_raw : RawPacket
-      RawPacket.new(@id, @data)
+    private def decompressed_data_size(data_length, id)
+      data_length - PacketBuffer.var_int_size(id)
     end
   end
 
@@ -168,25 +150,21 @@ struct PacketParser
     @data : Bytes
 
     def initialize(data : Bytes)
-      # TODO: handle case where varint fails to read
       buffer = PacketBuffer.new(data)
       @length = buffer.read_var_int
       @id = buffer.read_var_int
 
-      # TODO: handle case where buffer size overflows
       size = data_size(@length, @id)
       @data = buffer.read_byte_array(size)
     end
 
-    # Gets only the data size
-    def data_size(length, id)
-      temp = PacketBuffer.new
-      temp.write_var_int(id)
-      length - temp.data.size # Subtract ID length from packet length
-    end
-
     def to_raw : RawPacket
       RawPacket.new(@id, @data)
+    end
+
+    # Gets only the data size
+    private def data_size(length, id)
+      length - PacketBuffer.var_int_size(id)
     end
   end
 end
