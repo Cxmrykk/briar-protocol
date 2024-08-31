@@ -30,7 +30,7 @@
 #   - When condition is true: Field is read using the specified serialization method
 #   - When condition is false: Field is set to false_case value (or nil if not provided)
 
-macro define_packet(name, id, definitions)
+macro define_packet(name, id, definitions = [] of Nil)
   class {{name}} < RawPacket
     {% for definition in definitions %}
       {% if definition.size >= 4 %}
@@ -40,27 +40,29 @@ macro define_packet(name, id, definitions)
       {% end %}
     {% end %}
 
-    def initialize({% for definition, index in definitions %}
-      @{{definition[0]}} : {{definition[1]}}{% if index < definitions.size - 1 %}, {% end %}
-    {% end %})
-      buffer = PacketBuffer.new
-      {% for definition in definitions %}
-        {% if definition.size >= 4 %}
-          {% condition = definition[3] %}
-          {% true_case = definition[4] ? ", #{definition[4]}" : "" %}
-          {% false_case = definition[5] || "nil" %}
-          if {{condition}}
-            buffer.write_{{definition[2]}}(@{{definition[0]}}.not_nil!{{true_case.id}})
-          else
-            {{false_case.id}}
-          end
-        {% else %}
-          buffer.write_{{definition[2]}}(@{{definition[0]}})
+    {% if definitions.size > 0 %}
+      def initialize({% for definition, index in definitions %}
+        @{{definition[0]}} : {{definition[1]}}{% if index < definitions.size - 1 %}, {% end %}
+      {% end %})
+        buffer = PacketBuffer.new
+        {% for definition in definitions %}
+          {% if definition.size >= 4 %}
+            {% condition = definition[3] %}
+            {% true_case = definition[4] ? ", #{definition[4]}" : "" %}
+            {% false_case = definition[5] || "nil" %}
+            if {{condition}}
+              buffer.write_{{definition[2]}}(@{{definition[0]}}.not_nil!{{true_case.id}})
+            else
+              {{false_case.id}}
+            end
+          {% else %}
+            buffer.write_{{definition[2]}}(@{{definition[0]}})
+          {% end %}
         {% end %}
-      {% end %}
-      @id = {{id}}
-      @data = buffer.data
-    end
+        @id = {{id}}
+        @data = buffer.data
+      end
+    {% end %}
 
     def initialize(packet : RawPacket)
       buffer = PacketBuffer.new(packet.data)
@@ -82,12 +84,14 @@ macro define_packet(name, id, definitions)
       @data = buffer.data
     end
 
-    def to_tuple : Tuple({% for definition, index in definitions %}
-      {{definition[1]}}{% if index < definitions.size - 1 %}, {% end %}
-    {% end %})
-      { {% for definition, index in definitions %}
-        @{{definition[0]}}{% if index < definitions.size - 1 %}, {% end %}
-      {% end %} }
-    end
+    {% if definitions.size > 0 %}
+      def to_tuple : Tuple({% for definition, index in definitions %}
+        {{definition[1]}}{% if index < definitions.size - 1 %}, {% end %}
+      {% end %})
+        { {% for definition, index in definitions %}
+          @{{definition[0]}}{% if index < definitions.size - 1 %}, {% end %}
+        {% end %} }
+      end
+    {% end %}
   end
 end
