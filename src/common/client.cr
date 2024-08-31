@@ -20,12 +20,10 @@ class Client < ClientHandler
   end
 
   def get_length_header(data : Bytes)
-    buffer = PacketBuffer.new(data)
-    buffer.read_var_int
+    PacketBuffer.new(data).read_var_int
   end
 
   def write(packet : RawPacket)
-    # TODO: error handling
     return unless socket = @socket
     return if socket.closed?
     data = @parser.format(packet)
@@ -46,7 +44,7 @@ class Client < ClientHandler
 
         # Server has closed the connnection
         if bytes_read == 0
-          Log.error { "Connection was forcefully closed by server" }
+          Log.debug { "Connection was forcefully closed by server" }
           return
         end
 
@@ -96,19 +94,16 @@ class Client < ClientHandler
   end
 
   def handle(packet : Login::C::LoginSuccess)
-    Log.info { "Login Success received; Setting Protocol State to \"Play\"" }
+    Log.debug { "Login Success received; Setting Protocol State to \"Play\"" }
     @state = ProtocolState::Play
   end
 
   def handle(packet : Login::C::EnableCompression)
-    Log.info { "Compression set to #{packet.threshold}" }
+    Log.debug { "Compression set to #{packet.threshold}" }
     @parser.compression = packet.threshold
   end
 
   def handle(packet : Play::C::KeepAlive)
-    Log.info { "KeepAlive received (id: #{packet.keep_alive_id})" }
-
-    # Serverbound packet is the exact same
     keep_alive = Play::S::KeepAlive.new(packet.keep_alive_id)
     self.write(keep_alive)
   end
