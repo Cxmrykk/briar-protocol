@@ -3,21 +3,26 @@
 </div>
 
 ## Briar Protocol
-Experimental WIP minecraft protocol project\
-Supports: `1.8.9`
+**Currently supporting minecraft `1.8.9`**
 
 #### Features:
 
 - Connect to a minecraft server as a client (offline mode only)
 - Supports zlib packet compression
-- Login sequence and Keep Alive packet exchange
+- Login sequence and Keep-Alive packet exchange
  
 #### Goals:
 
 For the current version:
-- Support all server/client bound packets
 - Microsoft Account Authentication
+- Packet Encryption
 - Server implementation
+
+#### Deriving Projects:
+
+If the project matures enough, I might consider working on:
+- Packet sniffer using the client/server implementation
+- Higher level client library
 
 #### Long Term:
 
