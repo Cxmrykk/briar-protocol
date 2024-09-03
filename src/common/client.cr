@@ -1,7 +1,8 @@
 require "socket"
 require "log"
 
-require "./event"
+require "./auth"
+require "./disk"
 require "./handler"
 require "../packets"
 require "../buffer"
@@ -14,9 +15,23 @@ class Client < ClientHandler
   @socket : TCPSocket?
   @state : ProtocolState
 
-  def initialize(@username : String, @password : String? = nil)
+  def initialize(@username : String, password : String? = nil)
     super()
     @state = ProtocolState::Handshaking
+
+    unless password.nil?
+      # Get the refresh token from disk cache (if present)
+      refresh_token = Disk.read_token?(@username, password)
+
+      # Authenticate using MSA
+      result = Authenticator.auth(@username, refresh_token)
+
+      # Save the updated refresh token to disk cache
+      Disk.write_token(@username, password, result[:refresh_token])
+
+      # Use relevant data
+      @username = result[:profile]["name"].to_s
+    end
   end
 
   def get_length_header(data : Bytes)
