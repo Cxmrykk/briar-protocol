@@ -1,4 +1,5 @@
 require "big"
+require "uuid"
 require "./types"
 require "./macros"
 
