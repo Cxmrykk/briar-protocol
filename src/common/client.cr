@@ -1,8 +1,13 @@
+require "openssl_ext"
+require "openssl"
+require "base64"
 require "socket"
 require "log"
 
 require "./auth"
+require "./asn1"
 require "./disk"
+require "./crypt"
 require "./handler"
 require "../packets"
 require "../buffer"
@@ -12,8 +17,19 @@ BUFFER_SIZE = 1024 * 1024
 class Client < ClientHandler
   include Packets
 
-  @socket : TCPSocket?
+  alias Authentication = NamedTuple(
+    access_token: String,
+    uuid: String,
+  )
+
+  alias Encryption = NamedTuple(
+    shared_secret: Bytes,
+  )
+
   @state : ProtocolState
+  @socket : TCPSocket?
+  @authentication : Authentication?
+  @encryption : Encryption?
 
   def initialize(@username : String, password : String? = nil)
     super()
@@ -30,7 +46,11 @@ class Client < ClientHandler
       Disk.write_token(@username, password, result[:refresh_token])
 
       # Use relevant data
-      @username = result[:profile]["name"].to_s
+      @username = result[:profile]["name"].as_s
+      @authentication = {
+        access_token: result[:access_token],
+        uuid:         result[:profile]["id"].as_s,
+      }
     end
   end
 
@@ -41,7 +61,18 @@ class Client < ClientHandler
   def write(packet : RawPacket)
     return unless socket = @socket
     return if socket.closed?
+
     data = @parser.format(packet)
+
+    # Encrypt message with shared secret if encryption is enabled
+    @encryption.try do |encryption|
+      data = Crypt.encrypt(
+        cipher: "aes-128-cfb8",
+        key: encryption[:shared_secret],
+        data: data
+      )
+    end
+
     socket.write(data)
   end
 
@@ -63,7 +94,18 @@ class Client < ClientHandler
           return
         end
 
-        buffer += temp[0, bytes_read]
+        temp = temp[0, bytes_read]
+
+        # Decrypt message with shared secret if encryption is enabled
+        @encryption.try do |encryption|
+          temp = Crypt.decrypt(
+            cipher: "aes-128-cfb8",
+            key: encryption[:shared_secret],
+            data: temp.to_slice
+          )
+        end
+
+        buffer += temp
 
         # Determine how much of a packet we have received
         length = get_length_header(buffer)
@@ -106,6 +148,50 @@ class Client < ClientHandler
 
     # Start receiving packets
     self.read
+  end
+
+  def handle(packet : Login::C::EncryptionRequest)
+    # Generate a shared secret
+    shared_secret = Crypt.generate_shared_secret
+
+    # Convert ASN.1 DER encoded bytes to PEM
+    pem = String.build do |str|
+      str << "-----BEGIN PUBLIC KEY-----\n"
+      str << Base64.encode(packet.public_key)
+      str << "-----END PUBLIC KEY-----"
+    end
+
+    # Import PEM key to RSA
+    rsa_key = OpenSSL::PKey::RSA.new(pem)
+
+    # Encrypt the shared secret and verify token using public key (PKCS#1 v1.5 padded)
+    shared_secret_encrypted = rsa_key.public_encrypt(shared_secret, LibCrypto::Padding::PKCS1_PADDING)
+    verify_token_encrypted = rsa_key.public_encrypt(packet.verify_token, LibCrypto::Padding::PKCS1_PADDING)
+
+    # Authenticate with the server
+    @authentication.try do |authentication|
+      server_hash = Crypt.generate_server_hash(packet.server_id, shared_secret, packet.public_key)
+      Authenticator.server_auth(authentication[:uuid], authentication[:access_token], server_hash)
+    end
+
+    # Send the encrypted data to the server
+    encryption_response = Login::S::EncryptionResponse.new(
+      shared_secret_length: shared_secret_encrypted.size,
+      shared_secret: shared_secret_encrypted,
+      verify_token_length: verify_token_encrypted.size,
+      verify_token: verify_token_encrypted,
+    )
+
+    self.write(encryption_response)
+
+    # Enable encryption
+    Log.debug { "Encryption enabled by server" }
+    @encryption = {shared_secret: shared_secret}
+  end
+
+  def handle(packet : Login::C::LoginDisconnect)
+    Log.debug { "Received Login Disconnect (Reason: \"#{packet.reason}\")" }
+    @socket.try(&.close)
   end
 
   def handle(packet : Login::C::LoginSuccess)

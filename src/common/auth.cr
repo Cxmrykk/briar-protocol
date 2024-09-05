@@ -11,6 +11,24 @@ module Authenticator
 
   class Error < Exception; end
 
+  # Sends a join request to mojang session server
+  def self.server_auth(uuid : String, access_token : String, server_hash : String)
+    response = HTTP::Client.post(
+      "https://sessionserver.mojang.com/session/minecraft/join",
+      headers: HTTP::Headers{"Content-Type" => "application/json"},
+      body: {
+        "accessToken"     => access_token,
+        "selectedProfile" => uuid,
+        "serverId"        => server_hash,
+      }.to_json
+    )
+
+    unless response.status.success?
+      Log.debug { "Session authentication failed; Body:\n#{response.body}" }
+      raise "Failed to authenticate with sessionserver: Got #{response.status_code} (#{response.status})"
+    end
+  end
+
   def self.auth(email : String, refresh_token : String? = nil) : AuthResult
     # Get Microsoft token
     msa_token = if refresh_token.is_a?(String)
@@ -40,7 +58,7 @@ module Authenticator
     profile = get_profile(mca_token)
 
     return {
-      access_token:  access_token,
+      access_token:  mca_token,
       refresh_token: refresh_token,
       profile:       profile,
     }
@@ -161,4 +179,3 @@ module Authenticator
     JSON.parse(response.body)
   end
 end
-
