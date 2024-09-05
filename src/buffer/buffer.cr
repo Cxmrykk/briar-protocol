@@ -253,7 +253,7 @@ struct PacketBuffer
     array
   end
 
-  def write_byte_array(array : Bytes)
+  def write_byte_array(array : Bytes, *_args)
     @data = Bytes.new(@data.size + array.size) do |i|
       i < @data.size ? @data[i] : array[i - @data.size]
     end
