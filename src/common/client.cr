@@ -5,7 +5,6 @@ require "socket"
 require "log"
 
 require "./auth"
-require "./asn1"
 require "./disk"
 require "./crypt"
 require "./handler"
@@ -24,7 +23,8 @@ class Client < ClientHandler
 
   alias Encryption = NamedTuple(
     shared_secret: Bytes,
-  )
+    encryptor: OpenSSL::Cipher,
+    decryptor: OpenSSL::Cipher)
 
   @state : ProtocolState
   @socket : TCPSocket?
@@ -67,8 +67,7 @@ class Client < ClientHandler
     # Encrypt message with shared secret if encryption is enabled
     @encryption.try do |encryption|
       data = Crypt.encrypt(
-        cipher: "aes-128-cfb8",
-        key: encryption[:shared_secret],
+        cipher: encryption[:encryptor],
         data: data
       )
     end
@@ -99,9 +98,8 @@ class Client < ClientHandler
         # Decrypt message with shared secret if encryption is enabled
         @encryption.try do |encryption|
           temp = Crypt.decrypt(
-            cipher: "aes-128-cfb8",
-            key: encryption[:shared_secret],
-            data: temp.to_slice
+            cipher: encryption[:decryptor],
+            data: temp
           )
         end
 
@@ -186,7 +184,11 @@ class Client < ClientHandler
 
     # Enable encryption
     Log.debug { "Encryption enabled by server" }
-    @encryption = {shared_secret: shared_secret}
+    @encryption = {
+      shared_secret: shared_secret,
+      encryptor:     Crypt.encryptor("aes-128-cfb8", shared_secret),
+      decryptor:     Crypt.decryptor("aes-128-cfb8", shared_secret),
+    }
   end
 
   def handle(packet : Login::C::LoginDisconnect)

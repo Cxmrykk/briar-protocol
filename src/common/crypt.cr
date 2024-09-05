@@ -12,33 +12,39 @@ module Crypt
     Random::Secure.random_bytes(16)
   end
 
-  # Encrypts data using the cipher specified
-  def encrypt(cipher : String, key : Bytes, data : Bytes)
+  # Creates an encryption cipher using the secret provided
+  def encryptor(cipher : String, key : Bytes)
     cipher = OpenSSL::Cipher.new(cipher)
     cipher.encrypt
     cipher.key = key
     cipher.iv = key
-
-    io = IO::Memory.new
-    io.write(cipher.update(data))
-    io.write(cipher.final)
-    io.rewind
-
-    io.to_slice
+    cipher
   end
 
-  # Decrypts data using the cipher specified
-  def decrypt(cipher : String, key : Bytes, data : Bytes)
+  # Creates a decryption cipher using the secret provided
+  def decryptor(cipher : String, key : Bytes)
     cipher = OpenSSL::Cipher.new(cipher)
     cipher.decrypt
     cipher.key = key
     cipher.iv = key
+    cipher
+  end
 
+  # Encrypts data using the cipher provided
+  def encrypt(cipher : OpenSSL::Cipher, data : Bytes)
     io = IO::Memory.new
     io.write(cipher.update(data))
     io.write(cipher.final)
     io.rewind
+    io.to_slice
+  end
 
+  # Decrypts data using the cipher provided
+  def decrypt(cipher : OpenSSL::Cipher, data : Bytes)
+    io = IO::Memory.new
+    io.write(cipher.update(data))
+    io.write(cipher.final)
+    io.rewind
     io.to_slice
   end
 
@@ -52,7 +58,7 @@ module Crypt
     # Calculate the final hash
     hash = digest.final
 
-    # Check for negative hashes
+    # Check for negative hashes (most significant bit is sign bit)
     negative = (hash[0] & 0x80) != 0
 
     if negative
