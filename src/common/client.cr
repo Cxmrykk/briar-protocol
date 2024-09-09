@@ -24,7 +24,8 @@ class Client < ClientHandler
   alias Encryption = NamedTuple(
     shared_secret: Bytes,
     encryptor: OpenSSL::Cipher,
-    decryptor: OpenSSL::Cipher)
+    decryptor: OpenSSL::Cipher,
+  )
 
   @state : ProtocolState
   @socket : TCPSocket?
@@ -76,14 +77,13 @@ class Client < ClientHandler
   end
 
   def read
-    loop do
-      socket = @socket
-      break if socket.nil? || socket.closed?
-
+    socket = @socket
+    until socket.nil? || socket.closed?
       buffer = Bytes.empty
 
-      # Continue reading truncated packets
-      loop do
+      # Continue reading incoming data
+      until socket.nil? || socket.closed?
+        break if socket.nil? || socket.closed?
         temp = Bytes.new(BUFFER_SIZE)
         bytes_read = socket.read(temp)
 
@@ -110,16 +110,14 @@ class Client < ClientHandler
         length_size = PacketBuffer.var_int_size(length)
         remaining = length - (buffer.size - length_size) # length header value does not include length itself (but buffer itself does, so subtract it)
 
-        # Received packet length matches length header
         if remaining == 0
+          # Complete; Received packet length matches length header
           break
-          # Received packet is smaller than length header;
-          # Cancel handling and truncate the next packet
         elsif remaining > 0
+          # Incomplete; Received packet is smaller than length header
           next
-          # Received packet contains whole packet, and more;
-          # Use the rest as the start of next packet
         else
+          # Excess; Received packet contains whole packet with excess data
           bytes_available = length_size + length
           formed = buffer[0, bytes_available]
           buffer = buffer[bytes_available..]
