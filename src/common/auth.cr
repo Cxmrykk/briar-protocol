@@ -3,6 +3,8 @@ require "json"
 require "log"
 
 module Authenticator
+  extend self
+
   CLIENT_ID = "00000000441cc96b" # Nintendo Switch client ID
   SCOPE     = "service::user.auth.xboxlive.com::MBI_SSL"
 
@@ -12,7 +14,7 @@ module Authenticator
   class Error < Exception; end
 
   # Sends a join request to mojang session server
-  def self.server_auth(uuid : String, access_token : String, server_hash : String)
+  def server_auth(uuid : String, access_token : String, server_hash : String)
     response = HTTP::Client.post(
       "https://sessionserver.mojang.com/session/minecraft/join",
       headers: HTTP::Headers{"Content-Type" => "application/json"},
@@ -29,7 +31,7 @@ module Authenticator
     end
   end
 
-  def self.auth(email : String, refresh_token : String? = nil) : AuthResult
+  def auth(email : String, refresh_token : String? = nil) : AuthResult
     # Get Microsoft token
     msa_token = if refresh_token.is_a?(String)
                   begin
@@ -64,7 +66,7 @@ module Authenticator
     }
   end
 
-  private def self.interactive_get_ms_auth_token(email : String) : AuthToken
+  private def interactive_get_ms_auth_token(email : String) : AuthToken
     response = HTTP::Client.post(
       "https://login.live.com/oauth20_connect.srf",
       form: {
@@ -106,7 +108,7 @@ module Authenticator
     raise Error.new("Authentication timed out")
   end
 
-  private def self.refresh_ms_auth_token(refresh_token : String) : AuthToken
+  private def refresh_ms_auth_token(refresh_token : String) : AuthToken
     response = HTTP::Client.post(
       "https://login.live.com/oauth20_token.srf",
       form: {
@@ -127,7 +129,7 @@ module Authenticator
     raise Error.new("Authentication failed at 'refresh_ms_auth_token'")
   end
 
-  private def self.auth_with_xbox_live(access_token : String) : JSON::Any
+  private def auth_with_xbox_live(access_token : String) : JSON::Any
     response = HTTP::Client.post(
       "https://user.auth.xboxlive.com/user/authenticate",
       headers: HTTP::Headers{"Content-Type" => "application/json"},
@@ -144,7 +146,7 @@ module Authenticator
     JSON.parse(response.body)
   end
 
-  private def self.obtain_xsts_for_minecraft(xbl_auth_token : String) : String
+  private def obtain_xsts_for_minecraft(xbl_auth_token : String) : String
     response = HTTP::Client.post(
       "https://xsts.auth.xboxlive.com/xsts/authorize",
       headers: HTTP::Headers{"Content-Type" => "application/json"},
@@ -160,7 +162,7 @@ module Authenticator
     JSON.parse(response.body)["Token"].as_s
   end
 
-  private def self.auth_with_minecraft(user_hash : String, xsts_token : String) : String
+  private def auth_with_minecraft(user_hash : String, xsts_token : String) : String
     response = HTTP::Client.post(
       "https://api.minecraftservices.com/authentication/login_with_xbox",
       headers: HTTP::Headers{"Content-Type" => "application/json"},
@@ -171,7 +173,7 @@ module Authenticator
     JSON.parse(response.body)["access_token"].as_s
   end
 
-  private def self.get_profile(minecraft_access_token : String) : JSON::Any
+  private def get_profile(minecraft_access_token : String) : JSON::Any
     response = HTTP::Client.get(
       "https://api.minecraftservices.com/minecraft/profile",
       headers: HTTP::Headers{"Authorization" => "Bearer #{minecraft_access_token}"}
