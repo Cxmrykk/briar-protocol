@@ -8,6 +8,7 @@ require "./auth"
 require "./disk"
 require "./crypt"
 require "./handler"
+
 require "../packets"
 require "../buffer"
 
@@ -146,6 +147,30 @@ class Client < ClientHandler
     self.read
   end
 
+  #
+  # EventEmitter functions
+  # 
+
+  def close
+    @socket.try &.close
+  end
+
+  def on
+    @emitter.on
+  end
+
+  def once
+    @emitter.once
+  end
+
+  def receive
+    @emitter.receive
+  end
+
+  #
+  # Packet handlers (login sequence and keep alive)
+  # 
+
   def handle(packet : Login::C::EncryptionRequest)
     # Generate a shared secret
     shared_secret = Crypt.generate_shared_secret
@@ -207,9 +232,5 @@ class Client < ClientHandler
   def handle(packet : Play::C::KeepAlive)
     keep_alive = Play::S::KeepAlive.new(packet.keep_alive_id)
     self.write(keep_alive)
-  end
-
-  def close
-    @socket.try &.close
   end
 end
