@@ -1,10 +1,7 @@
 require "./types"
 require "./macros"
-require "../buffer"
 
-#
-# define_packet
-#
+require "../buffer"
 
 module Packets
   include Types
