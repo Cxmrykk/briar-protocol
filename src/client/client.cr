@@ -154,6 +154,7 @@ class Client < ClientHandler
   end
 
   def disconnect
+    self.close
   end
 
   def close
