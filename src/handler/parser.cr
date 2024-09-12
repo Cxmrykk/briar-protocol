@@ -1,10 +1,8 @@
 require "log"
 require "compress/zlib"
 
-require "../../buffer"
-require "../../packets"
-
-alias RawPacket = Packets::RawPacket
+require "../buffer"
+require "../packets"
 
 struct PacketParser
   def initialize

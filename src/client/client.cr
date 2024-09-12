@@ -7,8 +7,8 @@ require "log"
 require "./auth"
 require "./disk"
 require "./crypt"
-require "./handler"
 
+require "../handler"
 require "../packets"
 require "../buffer"
 

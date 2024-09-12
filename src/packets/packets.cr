@@ -4,11 +4,6 @@ require "./macros"
 require "../buffer"
 
 module Packets
-  include Types
-
-  alias Meta = Metadata::Data
-  alias Player = PlayerList::Value
-
   module Handshaking
     module S
       define_packet(Handshake, 0x00, [
@@ -159,7 +154,7 @@ module Packets
         {yaw, Angle, angle},
         {pitch, Angle, angle},
         {current_item, Int16, short},
-        {metadata, Meta, metadata},
+        {metadata, Metadata::Data, metadata},
       ])
 
       define_packet(CollectItem, 0x0D, [
@@ -193,7 +188,7 @@ module Packets
         {velocity_x, Int16, short},
         {velocity_y, Int16, short},
         {velocity_z, Int16, short},
-        {metadata, Meta, metadata},
+        {metadata, Metadata::Data, metadata},
       ])
 
       define_packet(SpawnPainting, 0x10, [
@@ -280,7 +275,7 @@ module Packets
 
       define_packet(EntityMetadata, 0x1C, [
         {entity_id, Int32, var_int},
-        {metadata, Meta, metadata},
+        {metadata, Metadata::Data, metadata},
       ])
 
       define_packet(EntityEffect, 0x1D, [
@@ -480,7 +475,7 @@ module Packets
       define_packet(PlayerListItem, 0x38, [
         {action, Int32, var_int},
         {player_count, Int32, var_int},
-        {players, Array(Player), player_array, @player_count >= 0, "@player_count, @action", "raise \"PlayerListItem: 'player_count' must be 0 or higher.\""},
+        {players, Array(PlayerList::Value), player_array, @player_count >= 0, "@player_count, @action", "raise \"PlayerListItem: 'player_count' must be 0 or higher.\""},
       ])
 
       define_packet(PlayerAbilities, 0x39, [

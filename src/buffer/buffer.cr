@@ -1,5 +1,6 @@
 require "big"
 require "uuid"
+
 require "./types"
 require "./macros"
 
@@ -280,7 +281,7 @@ struct PacketBuffer
 
   #
   # Angle
-  # 
+  #
 
   def read_angle : Angle
     read_unsigned_byte
@@ -292,7 +293,7 @@ struct PacketBuffer
 
   #
   # UUID
-  # 
+  #
 
   def read_uuid : UUID
     most_significant_bits = read_long
@@ -631,7 +632,7 @@ struct PacketBuffer
 
   #
   # Statistic
-  # 
+  #
 
   def read_statistic : Statistic
     {

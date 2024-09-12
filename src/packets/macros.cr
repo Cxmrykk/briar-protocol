@@ -32,24 +32,11 @@
 
 macro define_packet(name, id, definitions = [] of Nil)
   class {{name}} < RawPacket
-    alias TupleValue = Tuple(
-      {% for definition, index in definitions %}
-      {{definition[1]}}{% if index < definitions.size - 1 %}, 
-      {% end %}
-      {% end %}
-    )
-
-    alias NamedTupleValue = NamedTuple(
-    {% for definition in definitions %}
-    {{definition[0]}}: {{definition[1]}},
-    {% end %}
-    )
-
     {% for definition in definitions %}
     {% if definition.size >= 4 %}
-      getter {{definition[0]}} : {{definition[1]}}
+    getter {{definition[0]}} : {{definition[1]}}
     {% else %}
-      getter {{definition[0]}} : {{definition[1]}}
+    getter {{definition[0]}} : {{definition[1]}}
     {% end %}
     {% end %}
 
@@ -96,28 +83,6 @@ macro define_packet(name, id, definitions = [] of Nil)
       @id = {{id}}
       @data = buffer.data
     end
-
-    {% if definitions.size > 0 %}
-    def to_tuple : TupleValue
-      { {% for definition, index in definitions %}@{{definition[0]}}{% if index < definitions.size - 1 %}, {% end %}{% end %} }
-    end
-    {% else %}
-    def to_tuple
-      nil
-    end
-    {% end %}
-
-    {% if definitions.size > 0 %}
-    def to_named_tuple : NamedTupleValue
-      {
-        {% for definition in definitions %}{{definition[0]}}: @{{definition[0]}}, {% end %}
-      }
-    end
-    {% else %}
-    def to_named_tuple
-      nil
-    end
-    {% end %}
   end
 end
 

@@ -3,12 +3,12 @@ require "log"
 require "./macros"
 require "./parser"
 
-require "../../packets"
-require "../../packets/events"
+require "../packets"
+require "../packets/events"
 
 class ClientHandler
   include Packets
-
+  
   # Generate the ClientHandler class
   generate_handler({
     # Handshaking packets

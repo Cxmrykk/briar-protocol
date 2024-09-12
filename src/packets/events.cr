@@ -4,7 +4,7 @@ require "../buffer"
 
 module Events
   include Packets
-
+  
   module C
     create_event_emitter([
       {:server_info, Status::C::ServerInfo},
