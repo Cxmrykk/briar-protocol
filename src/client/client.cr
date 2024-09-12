@@ -12,10 +12,16 @@ require "../handler"
 require "../packets"
 require "../buffer"
 
-BUFFER_SIZE = 1024 * 1024
-
 class Client < ClientHandler
   include Packets
+
+  BUFFER_SIZE = 1024 * 1024
+
+  class LoginDisconnect < Exception; end
+
+  class PlayDisconnect < Exception; end
+
+  class ConnectionClosed < Exception; end
 
   alias Authentication = NamedTuple(
     access_token: String,
@@ -90,8 +96,8 @@ class Client < ClientHandler
 
         # Server has closed the connnection
         if bytes_read == 0
-          Log.debug { "Connection was forcefully closed by server" }
-          return
+          self.close
+          raise ConnectionClosed.new("Connection was forcefully closed by server")
         end
 
         temp = temp[0, bytes_read]
@@ -147,13 +153,17 @@ class Client < ClientHandler
     self.read
   end
 
-  #
-  # EventEmitter functions
-  # 
+  def disconnect
+  end
 
   def close
+    @encryption = nil
     @socket.try &.close
   end
+
+  #
+  # EventEmitter functions
+  #
 
   def on
     @emitter.on
@@ -169,7 +179,7 @@ class Client < ClientHandler
 
   #
   # Packet handlers (login sequence and keep alive)
-  # 
+  #
 
   def handle(packet : Login::C::EncryptionRequest)
     # Generate a shared secret
@@ -215,8 +225,8 @@ class Client < ClientHandler
   end
 
   def handle(packet : Login::C::LoginDisconnect)
-    Log.debug { "Received Login Disconnect (Reason: \"#{packet.reason}\")" }
     @socket.try(&.close)
+    raise LoginDisconnect.new("Unable to join server (Reason: \"#{packet.reason}\")")
   end
 
   def handle(packet : Login::C::LoginSuccess)
@@ -232,5 +242,10 @@ class Client < ClientHandler
   def handle(packet : Play::C::KeepAlive)
     keep_alive = Play::S::KeepAlive.new(packet.keep_alive_id)
     self.write(keep_alive)
+  end
+
+  def handle(packet : Play::C::PlayDisconnect)
+    @socket.try(&.close)
+    raise PlayDisconnect.new("Kicked by server (Reason: \"#{packet.reason}\")")
   end
 end
