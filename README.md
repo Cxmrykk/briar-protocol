@@ -9,26 +9,23 @@
 #### Features:
 
 - Connect to a minecraft server as a client
-- Zlib packet compression and AES encryption
-- Login sequence and Keep-Alive packet exchange
-- Microsoft authentication (refresh token supported)
+- Protocol encryption and compression
+- Authentication with Microsoft
+- Event handler
 
 #### Goals:
 
 For the current version:
 
-- Event handler using channels
 - Server implementation
 
 #### Deriving Projects:
 
-If the project matures enough, I might consider working on:
+In the near future, I may start working on:
 
 - Packet sniffer using the client/server implementation
 - High level client library
 
 #### Long Term:
-
-Potential features for future consideration include:
 
 - Protocol support for the latest version
