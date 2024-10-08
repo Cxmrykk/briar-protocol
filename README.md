@@ -15,13 +15,13 @@
 
 #### Goals:
 
-For the current version:
+For the current release:
 
 - Server implementation
 
 #### Deriving Projects:
 
-In the near future, I may start working on:
+In the future, I may decide to work on:
 
 - Packet sniffer using the client/server implementation
 - High level client library
