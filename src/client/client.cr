@@ -23,6 +23,8 @@ class Client < ClientHandler
 
   class ConnectionClosed < Exception; end
 
+  class InvalidAuth < Exception; end
+
   alias Authentication = NamedTuple(
     access_token: String,
     uuid: String,
@@ -34,32 +36,49 @@ class Client < ClientHandler
     decryptor: OpenSSL::Cipher,
   )
 
+  @email : String?
+  @username : String?
+
   @state : ProtocolState
   @socket : TCPSocket?
   @authentication : Authentication?
   @encryption : Encryption?
 
-  def initialize(@username : String, password : String? = nil)
+  def initialize(username : String, @password : String?)
     super()
+    # Attempt authentication (cache encryption key was specified)
+    @email = username if @password
+
+    # Offline mode, username is actual username
+    @username = username unless @password
+
+    # Initialize handshaking
     @state = ProtocolState::Handshaking
+  end
 
-    unless password.nil?
-      # Get the refresh token from disk cache (if present)
-      refresh_token = Disk.read_token?(@username, password)
-
-      # Authenticate using MSA
-      result = Authenticator.auth(@username, refresh_token)
-
-      # Save the updated refresh token to disk cache
-      Disk.write_token(@username, password, result[:refresh_token])
-
-      # Use relevant data
-      @username = result[:profile]["name"].as_s
-      @authentication = {
-        access_token: result[:access_token],
-        uuid:         result[:profile]["id"].as_s,
-      }
+  def authenticate
+    if @password.nil?
+      raise InvalidAuth.new("Cannot authenticate without specifying a password.")
     end
+
+    email = @email.not_nil!
+    password = @password.not_nil!
+
+    # Get the refresh token from disk cache (if present)
+    refresh_token = Disk.read_token?(email, password)
+
+    # Authenticate using MSA
+    result = Authenticator.auth(email, refresh_token)
+
+    # Save the updated refresh token to disk cache
+    Disk.write_token(email, password, result[:refresh_token])
+
+    # Use relevant data
+    @username = result[:profile]["name"].as_s
+    @authentication = {
+      access_token: result[:access_token],
+      uuid:         result[:profile]["id"].as_s,
+    }
   end
 
   def get_length_header(data : Bytes)
@@ -90,14 +109,20 @@ class Client < ClientHandler
 
       # Continue reading incoming data
       until socket.nil? || socket.closed?
-        break if socket.nil? || socket.closed?
         temp = Bytes.new(BUFFER_SIZE)
-        bytes_read = socket.read(temp)
+
+        # Read incoming TCP stream
+        bytes_read = begin
+          socket.read(temp)
+        rescue ex : IO::Error
+          Log.debug { "Got IO::Error: \"#{ex.to_s}\"" }
+          return
+        end
 
         # Server has closed the connnection
         if bytes_read == 0
           self.close
-          raise ConnectionClosed.new("Connection was forcefully closed by server")
+          raise ConnectionClosed.new("Connection was closed by the server")
         end
 
         temp = temp[0, bytes_read]
@@ -138,13 +163,20 @@ class Client < ClientHandler
   end
 
   def connect(host : String, port : Int32 = 25565)
+    # Authenticate unless already done so, or offline mode
+    self.authenticate unless @authentication || @password.nil?
+
+    # Establish TCP socket connection with server
     @socket = TCPSocket.new(host, port)
+
+    # Set the protocol state to handshaking
+    @state = ProtocolState::Handshaking
 
     # Start login sequence
     handshake = Handshaking::S::Handshake.new(47, host, port.to_i16, 2)
     self.write(handshake)
 
-    login_start = Login::S::LoginStart.new(@username)
+    login_start = Login::S::LoginStart.new(@username.not_nil!)
     self.write(login_start)
 
     @state = ProtocolState::Login
@@ -160,6 +192,7 @@ class Client < ClientHandler
   def close
     @encryption = nil
     @socket.try &.close
+    @socket = nil
   end
 
   #
