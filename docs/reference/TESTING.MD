@@ -1,4 +1,5 @@
 ### Note: copy/pasted code during testing development stage used for REFERENCE ONLY
+### NOT up-to-date
 
 **1. Testing VarInt, VarLong, packet buffer, packet parser and compression**
 ```crystal
