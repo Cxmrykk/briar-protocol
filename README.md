@@ -13,6 +13,12 @@
 - Authentication with Microsoft
 - Event handler
 
+#### Usage
+
+Please have a look at the following:
+
+- [EXAMPLES.md](docs/EXAMPLES.md)
+
 #### Goals:
 
 For the current release:
