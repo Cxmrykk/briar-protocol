@@ -44,7 +44,7 @@ class Client < ClientHandler
   @authentication : Authentication?
   @encryption : Encryption?
 
-  def initialize(username : String, @password : String?)
+  def initialize(username : String, @password : String? = nil)
     super()
     # Attempt authentication (cache encryption key was specified)
     @email = username if @password
@@ -86,8 +86,8 @@ class Client < ClientHandler
   end
 
   def write(packet : RawPacket)
-    return unless socket = @socket
-    return if socket.closed?
+    socket = @socket
+    return if socket.nil? || socket.closed?
 
     data = @parser.format(packet)
 
@@ -115,6 +115,7 @@ class Client < ClientHandler
         bytes_read = begin
           socket.read(temp)
         rescue ex : IO::Error
+          self.close
           Log.debug { "Got IO::Error: \"#{ex.to_s}\"" }
           return
         end
@@ -142,14 +143,15 @@ class Client < ClientHandler
         length_size = PacketBuffer.var_int_size(length)
         remaining = length - (buffer.size - length_size) # length header value does not include length itself (but buffer itself does, so subtract it)
 
+        # Complete; Received packet length matches length header
         if remaining == 0
-          # Complete; Received packet length matches length header
+          self.handle(@state, buffer)
           break
-        elsif remaining > 0
           # Incomplete; Received packet is smaller than length header
+        elsif remaining > 0
           next
-        else
           # Excess; Received packet contains whole packet with excess data
+        else
           bytes_available = length_size + length
           formed = buffer[0, bytes_available]
           buffer = buffer[bytes_available..]
@@ -157,8 +159,6 @@ class Client < ClientHandler
           next
         end
       end
-
-      self.handle(@state, buffer)
     end
   end
 
@@ -191,7 +191,12 @@ class Client < ClientHandler
 
   def close
     @encryption = nil
+    @parser.compression = -1 # nil
+
+    # Attempt to close the socket
     @socket.try &.close
+
+    # Reset the socket
     @socket = nil
   end
 
