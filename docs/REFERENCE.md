@@ -11,3 +11,6 @@
 - [minecraft/client/network/NetHandlerPlayClient.java](./MCP-source/src/minecraft/net/minecraft/client/network/NetHandlerPlayClient.java)
 - [minecraft/util/MessageDeserializer.java](./MCP-source/src/minecraft/net/minecraft/util/MessageDeserializer.java)
 - [minecraft/network/PacketBuffer.java](./MCP-source/src/minecraft/net/minecraft/network/PacketBuffer.java)
+
+**Related Projects**
+- https://github.com/RosegoldMC/rosegold.cr
