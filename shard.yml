@@ -7,6 +7,8 @@ authors:
 dependencies:
   openssl_ext:
     github: spider-gazelle/openssl_ext
+  dns:
+    github: spider-gazelle/dns
 
 crystal: '>= 1.13'
 

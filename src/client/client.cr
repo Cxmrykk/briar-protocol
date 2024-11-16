@@ -3,6 +3,7 @@ require "openssl"
 require "base64"
 require "socket"
 require "log"
+require "dns"
 
 require "./auth"
 require "./disk"
@@ -116,14 +117,14 @@ class Client < ClientHandler
           socket.read(temp)
         rescue ex : IO::Error
           self.close
-          Log.debug { "Got IO::Error: \"#{ex.to_s}\"" }
+          Log.debug { "Got IO::Error in TCPSocket::read: \"#{ex.to_s}\"" }
           return
         end
 
         # Server has closed the connnection
         if bytes_read == 0
           self.close
-          raise ConnectionClosed.new("Connection was closed by the server")
+          raise ConnectionClosed.new("Connection was closed by the server (bytes_read == 0)")
         end
 
         temp = temp[0, bytes_read]
@@ -165,6 +166,24 @@ class Client < ClientHandler
   def connect(host : String, port : Int32 = 25565)
     # Authenticate unless already done so, or offline mode
     self.authenticate unless @authentication || @password.nil?
+
+    # Resolve the DNS
+    begin
+      records = DNS.query("_minecraft._tcp." + host, [DNS::RecordType::SRV])
+
+      # Use the first resolved record
+      records.each do |record|
+        if record.record_type.srv?
+          srv_resource = record.resource.as(DNS::Resource::SRV)
+          host = srv_resource.target
+          port = srv_resource.port
+          Log.debug { "SRV lookup: #{host}:#{port}" }
+          break
+        end
+      end
+    rescue err
+      Log.debug { "DNS resolution failed: #{err}" }
+    end
 
     # Establish TCP socket connection with server
     @socket = TCPSocket.new(host, port)
