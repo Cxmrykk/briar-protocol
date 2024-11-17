@@ -15,6 +15,14 @@
 
 #### Usage
 
+First, add the dependency to your `shards.yml`
+
+```yml
+dependencies:
+  briar-protocol:
+    github: cxmrykk/briar-protocol
+```
+
 Please have a look at the following:
 
 - [EXAMPLES.md](docs/EXAMPLES.md)
