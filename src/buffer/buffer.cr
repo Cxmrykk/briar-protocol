@@ -324,6 +324,18 @@ struct PacketBuffer
     end
   end
 
+  def write_nbt(nbt : Nbt::Value?)
+    if nbt.is_a?(Nbt::NamedTag)
+      write_signed_byte(Nbt::ID.from_tag(nbt[:value]).to_i8)
+      write_modified_utf8_string(nbt[:name])
+      write_tag(nbt[:value])
+    elsif nbt.is_a?(Nbt::Tag)
+      write_named_tag({name: "", value: nbt})
+    else
+      write_signed_byte(0) # Tag::End
+    end
+  end
+
   private def read_named_tag : Nbt::NamedTag?
     id = read_signed_byte
 
@@ -335,6 +347,12 @@ struct PacketBuffer
     value = read_tag(id)
     return nil if value.nil?
     {name: name, value: value}
+  end
+
+  private def write_named_tag(tag : Nbt::NamedTag)
+    write_signed_byte(Nbt::ID.from_tag(tag[:value]).to_i8)
+    write_modified_utf8_string(tag[:name])
+    write_tag(tag[:value])
   end
 
   private def read_tag(id : Int8) : Nbt::Tag?
@@ -363,6 +381,40 @@ struct PacketBuffer
       read_compound
     in .int_array?
       read_int_array
+    end
+  end
+
+  private def write_tag(tag : Nbt::Tag)
+    case tag
+    when Int8
+      write_signed_byte(tag)
+    when Int16
+      write_short(tag)
+    when Int32
+      write_int(tag)
+    when Int64
+      write_long(tag)
+    when Float32
+      write_float(tag)
+    when Float64
+      write_double(tag)
+    when Bytes
+      write_int(tag.size)
+      write_byte_array(tag)
+    when String
+      write_modified_utf8_string(tag)
+    when Array(Nbt::Tag)
+      write_signed_byte(Nbt::ID.from_tag(tag.first).to_i8)
+      write_int(tag.size)
+      tag.each { |t| write_tag(t) }
+    when Hash(String, Nbt::Tag)
+      tag.each { |name, value| write_named_tag({name: name, value: value}) }
+      write_signed_byte(0) # Tag::End
+    when Array(Int32)
+      write_int(tag.size)
+      tag.each { |i| write_int(i) }
+    else
+      raise "Unknown NBT tag type: #{tag.class}"
     end
   end
 
@@ -402,6 +454,17 @@ struct PacketBuffer
     )
   end
 
+  def write_slot(slot : Slot)
+    if slot
+      write_short(slot[:id])
+      write_signed_byte(slot[:item_count])
+      write_short(slot[:item_damage])
+      write_nbt(slot[:nbt])
+    else
+      write_short(-1)
+    end
+  end
+
   private def read_modified_utf8_string : String
     length = read_short
     result = String.build do |str|
@@ -434,6 +497,53 @@ struct PacketBuffer
     result
   end
 
+  private def write_modified_utf8_string(str : String)
+    # First calculate the modified UTF-8 length
+    mutf8_length = 0
+    str.each_codepoint do |codepoint|
+      mutf8_length += case codepoint
+                      when 0x0000
+                        2 # null character takes 2 bytes in MUTF-8
+                      when 0x0001..0x007F
+                        1 # single byte format
+                      when 0x0080..0x07FF
+                        2 # two byte format
+                      when 0x0800..0xFFFF
+                        3 # three byte format
+                      else
+                        raise "Characters outside the BMP (> U+FFFF) are not supported in Modified UTF-8"
+                      end
+    end
+
+    # Write the length as a 16-bit integer
+    raise "String too long for Modified UTF-8" if mutf8_length > UInt16::MAX
+    write_unsigned_short(mutf8_length.to_u16)
+
+    # Write the string contents
+    str.each_codepoint do |codepoint|
+      case codepoint
+      when 0x0000
+        # Null character: encoded as 0xC0 0x80
+        write_unsigned_byte(0xC0_u8)
+        write_unsigned_byte(0x80_u8)
+      when 0x0001..0x007F
+        # Single byte format
+        write_unsigned_byte(codepoint.to_u8)
+      when 0x0080..0x07FF
+        # Two byte format
+        write_unsigned_byte((0xC0 | (codepoint >> 6)).to_u8)
+        write_unsigned_byte((0x80 | (codepoint & 0x3F)).to_u8)
+      when 0x0800..0xFFFF
+        # Three byte format
+        write_unsigned_byte((0xE0 | (codepoint >> 12)).to_u8)
+        write_unsigned_byte((0x80 | ((codepoint >> 6) & 0x3F)).to_u8)
+        write_unsigned_byte((0x80 | (codepoint & 0x3F)).to_u8)
+      else
+        raise "Characters outside the BMP (> U+FFFF) are not supported in Modified UTF-8"
+      end
+    end
+  end
+
   #
   # Entity Metadata and subtypes
   #
@@ -448,6 +558,13 @@ struct PacketBuffer
     end
 
     entries
+  end
+
+  def write_metadata(metadata : Metadata::Data)
+    metadata.each do |entry|
+      write_watchable_object(entry)
+    end
+    write_unsigned_byte(127_u8) # End of metadata
   end
 
   private def read_watchable_object : Metadata::Entry?
@@ -467,6 +584,12 @@ struct PacketBuffer
       id:    id,
       value: value,
     }
+  end
+
+  private def write_watchable_object(entry : Metadata::Entry)
+    type_and_id = ((entry[:type] << 5) | (entry[:id] & 0x1F)).to_u8
+    write_unsigned_byte(type_and_id)
+    write_watchable_object_value(entry[:type], entry[:value])
   end
 
   private def read_watchable_object_value(type : Int32) : Metadata::Value
@@ -491,6 +614,32 @@ struct PacketBuffer
         y: read_float,
         z: read_float,
       }
+    else
+      raise "Unknown watchable object type: #{type}"
+    end
+  end
+
+  private def write_watchable_object_value(type : Int32, value : Metadata::Value)
+    case type
+    when 0
+      write_signed_byte(value.as(Int8))
+    when 1
+      write_short(value.as(Int16))
+    when 2
+      write_int(value.as(Int32))
+    when 3
+      write_float(value.as(Float32))
+    when 4
+      write_string(value.as(String))
+    when 5
+      write_slot(value.as(Slot?))
+    when 6
+      write_position(value.as(Position))
+    when 7
+      rotations = value.as(Metadata::Rotations)
+      write_float(rotations[:x])
+      write_float(rotations[:y])
+      write_float(rotations[:z])
     else
       raise "Unknown watchable object type: #{type}"
     end
@@ -542,9 +691,21 @@ struct PacketBuffer
     }
   end
 
+  def write_chunk_meta(meta : Chunk::Meta)
+    write_int(meta[:chunk_x])
+    write_int(meta[:chunk_z])
+    write_unsigned_short(meta[:primary_bit_mask])
+  end
+
   def read_chunk_array_from_meta(meta : Array(Chunk::Meta), sky_light_sent : Bool) : Array(Chunk::Column)
     meta.map do |chunk_meta|
       read_chunk(chunk_meta[:primary_bit_mask], sky_light_sent)
+    end
+  end
+
+  def write_chunk_array_from_meta(columns : Array(Chunk::Column), sky_light_sent : Bool, meta : Array(Chunk::Meta))
+    meta.zip(columns).each do |chunk_meta, column|
+      write_chunk(column, sky_light_sent, chunk_meta[:primary_bit_mask])
     end
   end
 
@@ -572,6 +733,15 @@ struct PacketBuffer
     }
   end
 
+  def write_chunk(column : Chunk::Column, sky_light_sent : Bool, primary_bit_mask : UInt16)
+    column[:sections].each_with_index do |section, i|
+      if (primary_bit_mask & (1 << i)) != 0
+        write_chunk_section(section.not_nil!, sky_light_sent)
+      end
+    end
+    write_byte_array(column[:biomes])
+  end
+
   private def read_chunk_section(sky_light_sent : Bool) : Chunk::Section
     {
       blocks:      read_unsigned_short_array(4096),
@@ -580,9 +750,21 @@ struct PacketBuffer
     }
   end
 
+  private def write_chunk_section(section : Chunk::Section, sky_light_sent : Bool)
+    write_unsigned_short_array(section[:blocks])
+    write_nibble_array(section[:block_light])
+    if sky_light_sent
+      write_nibble_array(section[:sky_light].not_nil!)
+    end
+  end
+
   private def read_nibble_array : Chunk::NibbleArray
     bytes = read_byte_array(2048)
     Chunk::NibbleArray.new(bytes)
+  end
+
+  private def write_nibble_array(nibble_array : Chunk::NibbleArray)
+    write_byte_array(nibble_array.data)
   end
 
   # Calculate expected size without sky light:
@@ -606,6 +788,12 @@ struct PacketBuffer
     }
   end
 
+  def write_block_record(record : BlockRecord)
+    write_unsigned_byte(record[:horizontal_pos])
+    write_unsigned_byte(record[:y])
+    write_var_int(record[:block_id])
+  end
+
   #
   # Explosion Record
   #
@@ -616,6 +804,12 @@ struct PacketBuffer
       y_offset: read_signed_byte,
       z_offset: read_signed_byte,
     }
+  end
+
+  def write_explosion_record(record : ExplosionRecord)
+    write_signed_byte(record[:x_offset])
+    write_signed_byte(record[:y_offset])
+    write_signed_byte(record[:z_offset])
   end
 
   #
@@ -630,6 +824,12 @@ struct PacketBuffer
     }
   end
 
+  def write_map_icon(icon : MapIcon)
+    write_signed_byte(icon[:icon_data])
+    write_signed_byte(icon[:x])
+    write_signed_byte(icon[:z])
+  end
+
   #
   # Statistic
   #
@@ -641,6 +841,11 @@ struct PacketBuffer
     }
   end
 
+  def write_statistic(statistic : Statistic)
+    write_string(statistic[:name])
+    write_var_int(statistic[:value])
+  end
+
   #
   # Player List and subtypes
   #
@@ -650,6 +855,11 @@ struct PacketBuffer
       uuid:   read_uuid,
       action: read_pl_action(action),
     }
+  end
+
+  def write_player(player : PlayerList::Value, action : Int32)
+    write_uuid(player[:uuid])
+    write_pl_action(player[:action], action)
   end
 
   private def read_pl_action(action : Int32) : PlayerList::Action
@@ -682,6 +892,32 @@ struct PacketBuffer
     end
   end
 
+  private def write_pl_action(action : PlayerList::Action, action_id : Int32)
+    case PlayerList::ID.new(action_id)
+    in .add_player?
+      write_string(action.as(PlayerList::Action_::AddPlayer)[:name])
+      write_var_int(action.as(PlayerList::Action_::AddPlayer)[:property_count])
+      write_pl_property_array(action.as(PlayerList::Action_::AddPlayer)[:properties])
+      write_var_int(action.as(PlayerList::Action_::AddPlayer)[:gamemode])
+      write_var_int(action.as(PlayerList::Action_::AddPlayer)[:ping])
+      write_boolean(action.as(PlayerList::Action_::AddPlayer)[:has_display_name?])
+      if action.as(PlayerList::Action_::AddPlayer)[:has_display_name?]
+        write_string(action.as(PlayerList::Action_::AddPlayer)[:display_name].not_nil!)
+      end
+    in .update_gamemode?
+      write_var_int(action.as(PlayerList::Action_::UpdateGamemode)[:gamemode])
+    in .update_latency?
+      write_var_int(action.as(PlayerList::Action_::UpdateLatency)[:ping])
+    in .update_display_name?
+      write_boolean(action.as(PlayerList::Action_::UpdateDisplayName)[:has_display_name?])
+      if action.as(PlayerList::Action_::UpdateDisplayName)[:has_display_name?]
+        write_string(action.as(PlayerList::Action_::UpdateDisplayName)[:display_name].not_nil!)
+      end
+    in .remove_player?
+      # No fields to write
+    end
+  end
+
   private def read_pl_property : PlayerList::Property
     {
       name:      read_string,
@@ -689,6 +925,15 @@ struct PacketBuffer
       signed?:   (s = read_boolean),
       signature: s ? read_string : nil,
     }
+  end
+
+  private def write_pl_property(property : PlayerList::Property)
+    write_string(property[:name])
+    write_string(property[:value])
+    write_boolean(property[:signed?])
+    if property[:signed?]
+      write_string(property[:signature].not_nil!)
+    end
   end
 
   #
@@ -734,6 +979,36 @@ struct PacketBuffer
     end
   end
 
+  def write_wb_action(action : WorldBorder::Action, action_id : Int32)
+    case WorldBorder::ID.new(action_id)
+    in .set_size?
+      write_double(action.as(WorldBorder::Action_::SetSize)[:radius])
+    in .lerp_size?
+      lerp = action.as(WorldBorder::Action_::LerpSize)
+      write_double(lerp[:old_radius])
+      write_double(lerp[:new_radius])
+      write_var_long(lerp[:speed])
+    in .set_center?
+      center = action.as(WorldBorder::Action_::SetCenter)
+      write_double(center[:x])
+      write_double(center[:z])
+    in .initialize?
+      init = action.as(WorldBorder::Action_::Initialize)
+      write_double(init[:x])
+      write_double(init[:z])
+      write_double(init[:old_radius])
+      write_double(init[:new_radius])
+      write_var_long(init[:speed])
+      write_var_int(init[:portal_tp_boundary])
+      write_var_int(init[:warning_time])
+      write_var_int(init[:warning_blocks])
+    in .set_warning_time?
+      write_var_int(action.as(WorldBorder::Action_::SetWarningTime)[:warning_time])
+    in .set_warning_blocks?
+      write_var_int(action.as(WorldBorder::Action_::SetWarningBlocks)[:warning_blocks])
+    end
+  end
+
   #
   # Title
   #
@@ -756,6 +1031,20 @@ struct PacketBuffer
       nil
     end
   end
+end
 
-  # ... other read/write methods for different data types ...
+def write_title_action(action : Title::Action, action_id : Int32)
+  case Title::ID.new(action_id)
+  in .set_title?
+    write_string(action.as(Title::Action_::SetTitle)[:text])
+  in .set_subtitle?
+    write_string(action.as(Title::Action_::SetSubtitle)[:text])
+  in .set_times_display?
+    times = action.as(Title::Action_::SetTimesDisplay)
+    write_int(times[:fade_in])
+    write_int(times[:stay])
+    write_int(times[:fade_out])
+  in .hide?, .reset?
+    # No fields to write
+  end
 end
