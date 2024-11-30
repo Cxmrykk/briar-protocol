@@ -8,7 +8,7 @@ require "../packets/events"
 
 class ClientHandler
   include Packets
-  
+
   # Generate the ClientHandler class
   generate_handler({
     # Handshaking packets
@@ -106,4 +106,58 @@ class ClientHandler
       {Play::C::UpdateEntityNBT, :update_entity_nbt, 0x49},
     ],
   }, Events::C::EventEmitter)
+end
+
+class ServerHandler
+  include Packets
+
+  # Generate the ServerHandler class
+  generate_server_handler({
+    # Handshaking packets
+    [
+      {Handshaking::S::Handshake, :handshake, 0x00},
+    ],
+
+    # Status packets
+    [
+      {Status::S::Request, :request, 0x00},
+      {Status::S::Ping, :ping, 0x01},
+    ],
+
+    # Login packets
+    [
+      {Login::S::LoginStart, :login_start, 0x00},
+      {Login::S::EncryptionResponse, :encryption_response, 0x01},
+    ],
+
+    # Play packets
+    [
+      {Play::S::KeepAlive, :keep_alive, 0x00},
+      {Play::S::Chat, :chat, 0x01},
+      {Play::S::UseEntity, :use_entity, 0x02},
+      {Play::S::Player, :player, 0x03},
+      {Play::S::PlayerPosition, :player_position, 0x04},
+      {Play::S::PlayerLook, :player_look, 0x05},
+      {Play::S::PlayerPosLook, :player_pos_look, 0x06},
+      {Play::S::PlayerDigging, :player_digging, 0x07},
+      {Play::S::PlayerBlockPlacement, :player_block_placement, 0x08},
+      {Play::S::HeldItemChange, :held_item_change, 0x09},
+      {Play::S::Animation, :animation, 0x0A},
+      {Play::S::EntityAction, :entity_action, 0x0B},
+      {Play::S::SteerInput, :steer_input, 0x0C},
+      {Play::S::CloseWindow, :close_window, 0x0D},
+      {Play::S::ClickWindow, :click_window, 0x0E},
+      {Play::S::ConfirmTransaction, :confirm_transaction, 0x0F},
+      {Play::S::CreativeInventoryAction, :creative_inventory_action, 0x10},
+      {Play::S::EnchantItem, :enchant_item, 0x11},
+      {Play::S::UpdateSign, :update_sign, 0x12},
+      {Play::S::PlayerAbilities, :player_abilities, 0x13},
+      {Play::S::TabComplete, :tab_complete, 0x14},
+      {Play::S::ClientSettings, :client_settings, 0x15},
+      {Play::S::ClientStatus, :client_status, 0x16},
+      {Play::S::CustomPayload, :custom_payload, 0x17},
+      {Play::S::Spectate, :spectate, 0x18},
+      {Play::S::ResourcePackStatus, :resource_pack_status, 0x19},
+    ],
+  }, Events::S::EventEmitter)
 end

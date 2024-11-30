@@ -16,7 +16,8 @@ require "../buffer"
 class Client < ClientHandler
   include Packets
 
-  BUFFER_SIZE = 1024 * 1024
+  PROTOCOL_VERSION = 47
+  BUFFER_SIZE      = 1024 * 1024
 
   class LoginDisconnect < Exception; end
 
@@ -104,60 +105,61 @@ class Client < ClientHandler
   end
 
   def read
-    socket = @socket
-    until socket.nil? || socket.closed?
-      buffer = Bytes.empty
+    while socket = @socket
+      until socket.closed?
+        buffer = Bytes.empty
 
-      # Continue reading incoming data
-      until socket.nil? || socket.closed?
-        temp = Bytes.new(BUFFER_SIZE)
+        # Continue reading incoming data
+        until socket.nil? || socket.closed?
+          temp = Bytes.new(BUFFER_SIZE)
 
-        # Read incoming TCP stream
-        bytes_read = begin
-          socket.read(temp)
-        rescue ex : IO::Error
-          self.close
-          Log.debug { "Got IO::Error in TCPSocket::read: \"#{ex.to_s}\"" }
-          return
-        end
+          # Read incoming TCP stream
+          bytes_read = begin
+            socket.read(temp)
+          rescue ex : IO::Error
+            self.close
+            Log.debug { "Got IO::Error in TCPSocket::read: \"#{ex.to_s}\"" }
+            return
+          end
 
-        # Server has closed the connnection
-        if bytes_read == 0
-          self.close
-          raise ConnectionClosed.new("Connection was closed by the server (bytes_read == 0)")
-        end
+          # Server has closed the connnection
+          if bytes_read == 0
+            self.close
+            raise ConnectionClosed.new("Connection was closed by the server (bytes_read == 0)")
+          end
 
-        temp = temp[0, bytes_read]
+          temp = temp[0, bytes_read]
 
-        # Decrypt message with shared secret if encryption is enabled
-        @encryption.try do |encryption|
-          temp = Crypt.decrypt(
-            cipher: encryption[:decryptor],
-            data: temp
-          )
-        end
+          # Decrypt message with shared secret if encryption is enabled
+          @encryption.try do |encryption|
+            temp = Crypt.decrypt(
+              cipher: encryption[:decryptor],
+              data: temp
+            )
+          end
 
-        buffer += temp
+          buffer += temp
 
-        # Determine how much of a packet we have received
-        length = get_length_header(buffer)
-        length_size = PacketBuffer.var_int_size(length)
-        remaining = length - (buffer.size - length_size) # length header value does not include length itself (but buffer itself does, so subtract it)
+          # Determine how much of a packet we have received
+          length = PacketBuffer.new(buffer).read_var_int
+          length_size = PacketBuffer.var_int_size(length)
+          remaining = length - (buffer.size - length_size) # length header value does not include length itself (but buffer itself does, so subtract it)
 
-        # Complete; Received packet length matches length header
-        if remaining == 0
-          self.handle(@state, buffer)
-          break
-          # Incomplete; Received packet is smaller than length header
-        elsif remaining > 0
-          next
-          # Excess; Received packet contains whole packet with excess data
-        else
-          bytes_available = length_size + length
-          formed = buffer[0, bytes_available]
-          buffer = buffer[bytes_available..]
-          self.handle(@state, formed)
-          next
+          # Complete; Received packet length matches length header
+          if remaining == 0
+            self.handle(@state, buffer)
+            break
+            # Incomplete; Received packet is smaller than length header
+          elsif remaining > 0
+            next
+            # Excess; Received packet contains whole packet with excess data
+          else
+            bytes_available = length_size + length
+            formed = buffer[0, bytes_available]
+            buffer = buffer[bytes_available..]
+            self.handle(@state, formed)
+            next
+          end
         end
       end
     end
@@ -192,7 +194,7 @@ class Client < ClientHandler
     @state = ProtocolState::Handshaking
 
     # Start login sequence
-    handshake = Handshaking::S::Handshake.new(47, host, port.to_i16, 2)
+    handshake = Handshaking::S::Handshake.new(PROTOCOL_VERSION, host, port.to_i16, 2)
     self.write(handshake)
 
     login_start = Login::S::LoginStart.new(@username.not_nil!)
@@ -304,6 +306,6 @@ class Client < ClientHandler
 
   def handle(packet : Play::C::PlayDisconnect)
     @socket.try(&.close)
-    raise PlayDisconnect.new("Kicked by server (Reason: \"#{packet.reason}\")")
+    raise PlayDisconnect.new("Kicked from server (Reason: \"#{packet.reason}\")")
   end
 end

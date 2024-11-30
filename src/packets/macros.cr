@@ -195,3 +195,113 @@ macro create_event_emitter(definitions)
     end
   end
 end
+
+#
+# Defines an event emitter for the server implementation
+#
+
+macro create_server_event_emitter(definitions)
+  class EventChannel(T)
+    @channel : Channel(NamedTuple(id: String, value: T))
+    @count : Int32
+
+    def initialize
+      @channel = Channel(NamedTuple(id: String, value: T)).new
+      @count = 0
+    end
+
+    def emit(id : String, value : T)
+      while @count > 0
+        @channel.send({id: id, value: value})
+        @count -= 1
+      end
+    end
+
+    def receive
+      @count += 1
+      @channel.receive
+    end
+
+    def on(&block : NamedTuple(id: String, value: T) ->)
+      spawn {
+        loop {
+          block.call(self.receive)
+        }
+      }
+    end
+  end
+
+  module EventHandler
+    class Events
+      {% for definition in definitions %}
+      getter {{definition[0].id}} : EventChannel({{definition[1]}})
+      {% end %}
+
+      module Literal
+        {% for definition in definitions %}
+        enum {{definition[0].id.camelcase}}
+          {{definition[0].id.camelcase}}
+        end
+        {% end %}
+      end
+
+      def initialize
+        {% for definition in definitions %}
+        @{{definition[0].id}} = EventChannel({{definition[1]}}).new
+        {% end %}
+      end
+    end
+
+    class On
+      @events : Events
+
+      def initialize(@events : Events)
+      end
+
+      {% for definition in definitions %}
+      def {{definition[0].id}}(&block : NamedTuple(id: String, value: {{definition[1]}}) ->)
+        @events.{{definition[0].id}}.on(&block)
+      end
+      {% end %}
+    end
+
+    class Emit
+      @events : Events
+
+      def initialize(@events : Events)
+      end
+
+      {% for definition in definitions %}
+      def {{definition[0].id}}(id : String, value : {{definition[1]}})
+        @events.{{definition[0].id}}.emit(id, value)
+      end
+      {% end %}
+    end
+
+    class Receive
+      @events : Events
+
+      def initialize(@events : Events)
+      end
+
+      {% for definition in definitions %}
+      def {{definition[0].id}}
+        @events.{{definition[0].id}}.receive
+      end
+      {% end %}
+    end
+  end
+
+  class EventEmitter
+    getter on : EventHandler::On
+    getter emit : EventHandler::Emit
+    getter receive : EventHandler::Receive
+
+    def initialize
+      @events = EventHandler::Events.new
+      @on = EventHandler::On.new(@events)
+      @emit = EventHandler::Emit.new(@events)
+      @receive = EventHandler::Receive.new(@events)
+    end
+  end
+end

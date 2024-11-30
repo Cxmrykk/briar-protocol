@@ -4,7 +4,7 @@ require "../buffer"
 
 module Events
   include Packets
-  
+
   module C
     create_event_emitter([
       {:server_info, Status::C::ServerInfo},
@@ -91,6 +91,38 @@ module Events
   end
 
   module S
-    # todo
+    create_server_event_emitter([
+      {:handshake, Handshaking::S::Handshake},
+      {:request, Status::S::Request},
+      {:ping, Status::S::Ping},
+      {:login_start, Login::S::LoginStart},
+      {:encryption_response, Login::S::EncryptionResponse},
+      {:keep_alive, Play::S::KeepAlive},
+      {:chat, Play::S::Chat},
+      {:use_entity, Play::S::UseEntity},
+      {:player, Play::S::Player},
+      {:player_position, Play::S::PlayerPosition},
+      {:player_look, Play::S::PlayerLook},
+      {:player_pos_look, Play::S::PlayerPosLook},
+      {:player_digging, Play::S::PlayerDigging},
+      {:player_block_placement, Play::S::PlayerBlockPlacement},
+      {:held_item_change, Play::S::HeldItemChange},
+      {:animation, Play::S::Animation},
+      {:entity_action, Play::S::EntityAction},
+      {:steer_input, Play::S::SteerInput},
+      {:close_window, Play::S::CloseWindow},
+      {:click_window, Play::S::ClickWindow},
+      {:confirm_transaction, Play::S::ConfirmTransaction},
+      {:creative_inventory_action, Play::S::CreativeInventoryAction},
+      {:enchant_item, Play::S::EnchantItem},
+      {:update_sign, Play::S::UpdateSign},
+      {:player_abilities, Play::S::PlayerAbilities},
+      {:tab_complete, Play::S::TabComplete},
+      {:client_settings, Play::S::ClientSettings},
+      {:client_status, Play::S::ClientStatus},
+      {:custom_payload, Play::S::CustomPayload},
+      {:spectate, Play::S::Spectate},
+      {:resource_pack_status, Play::S::ResourcePackStatus},
+    ])
   end
 end
