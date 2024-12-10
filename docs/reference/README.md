@@ -4,11 +4,8 @@
 **Important links**
 - [Crystal 1.13 Introduction](https://crystal-lang.org/reference/1.13/tutorials/basics/index.html)
 - [Crystal 1.13 Reference](https://crystal-lang.org/reference/1.13/syntax_and_semantics/index.html)
-- [wiki.vg - MC 1.8](https://wiki.vg/index.php?title=Protocol&oldid=7368)
-  - [Protocol Versions](https://wiki.vg/Protocol_version_numbers)
-  - [Data types](https://wiki.vg/Data_types_(v47))
-  - [Chunk data](https://wiki.vg/index.php?title=Chunk_Format&oldid=7164)
-  - [Slot data](https://wiki.vg/index.php?title=Slot_Data&oldid=7094)
+- [minecraft.wiki - MC 1.8](https://minecraft.wiki/w/Protocol?oldid=2772100)
+  - [Protocol Versions](https://minecraft.wiki/w/Minecraft_Wiki:Projects/wiki.vg_merge/Protocol_version_numbers)
 
 **Important files (Located in MCP-source)**
 - [minecraft/client/network/NetHandlerPlayClient.java](./MCP-source/src/minecraft/net/minecraft/client/network/NetHandlerPlayClient.java)
