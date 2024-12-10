@@ -12,14 +12,6 @@ require "../buffer"
 require "../common/auth"
 require "../common/crypt"
 
-#
-# Bare minimum server implements:
-# - Handshake and login
-# - Keep Alive
-# - Encryption
-# - Compression
-#
-
 class ClientData
   class KeepAlive
     property id : Int32
