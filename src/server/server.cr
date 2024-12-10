@@ -8,6 +8,8 @@ require "dns"
 require "../handler"
 require "../packets"
 require "../buffer"
+require "../client/crypt"
+require "../client/auth"
 
 #
 # Bare minimum server implements:
@@ -32,12 +34,19 @@ class ClientData
     end
   end
 
-  getter keep_alive : KeepAlive
+  alias Encryption = NamedTuple(
+    encryptor: OpenSSL::Cipher,
+    decryptor: OpenSSL::Cipher,
+  )
 
+  property keep_alive : KeepAlive
   property state : ProtocolState
   property socket : TCPSocket
+
   property username : String?
   property uuid : String?
+  property encryption : Encryption?
+  property properties : Array(JSON::Any)?
 
   def initialize(@state : ProtocolState, @socket : TCPSocket)
     @keep_alive = KeepAlive.new
@@ -52,21 +61,56 @@ class Server < ServerHandler
   BUFFER_SIZE         = 1024 * 1024
   KEEP_ALIVE_INTERVAL = 5000.milliseconds
 
+  alias Encryption = NamedTuple(
+    pkey: OpenSSL::PKey::RSA,
+    public_key: Bytes,
+    verify_token: Bytes,
+  )
+
   getter server : TCPServer?
-  getter encryption : Bool
+  getter encryption : Encryption?
+
   getter compression : Int32
   getter keep_alive : Time::Span
   getter clients : Hash(String, ClientData)
+  getter encryption_enabled : Bool
 
-  def initialize(@encryption : Bool = false, @compression : Int32 = -1, @keep_alive : Time::Span = 30.seconds)
+  def initialize(@encryption_enabled : Bool = false, @compression : Int32 = -1, @keep_alive : Time::Span = 30.seconds)
     super()
     @clients = Hash(String, ClientData).new
     @parser.compression = @compression
   end
 
   def start(port : Int32 = 25565)
+    # Generate a new 1024-bit RSA key pair
+    if @encryption_enabled
+      Log.debug { "Encryption enabled, a new RSA keypair will be generated" }
+      pkey = OpenSSL::PKey::RSA.new(1024)
+
+      # Get the public key from the key pair (extract to DER)
+      public_key = (
+        if key = pkey.public_key.to_pem.match(/-----BEGIN PUBLIC KEY-----\n(.*)\n-----END PUBLIC KEY-----/m)
+          Base64.decode(key[1])
+        else
+          raise "Invalid PEM public key generated (critical error)"
+        end
+      )
+
+      # Generate a random verify token (used to verify encryption works)
+      verify_token = Random::Secure.random_bytes(16)
+
+      @encryption = Encryption.new(
+        pkey: pkey,
+        public_key: public_key,
+        verify_token: verify_token,
+      )
+    end
+
+    # Start the TCP server on specified port
     @server = TCPServer.new(port)
     Log.debug { "Server listening on port #{port}" }
+
+    # Accept new client connections until stopped
     accept_clients
   end
 
@@ -101,15 +145,13 @@ class Server < ServerHandler
 
     data = @parser.format(packet)
 
-    # todo
-    #
     # Encrypt message with shared secret if encryption is enabled
-    # @encryption.try do |encryption|
-    #  data = Crypt.encrypt(
-    #    cipher: encryption[:encryptor],
-    #    data: data
-    #  )
-    # end
+    @clients[id].encryption.try do |encryption|
+      data = Crypt.encrypt(
+        cipher: encryption[:encryptor],
+        data: data
+      )
+    end
 
     socket.write(data)
   end
@@ -143,20 +185,19 @@ class Server < ServerHandler
           end
 
           temp = temp[0, bytes_read]
+
+          # Decrypt message with shared secret if encryption is enabled
+          @clients[id].encryption.try do |encryption|
+            temp = Crypt.decrypt(
+              cipher: encryption[:decryptor],
+              data: temp
+            )
+          end
+
           buffer += temp
         else
           repeating = false
         end
-
-        # todo
-        #
-        # Decrypt message with shared secret if encryption is enabled
-        # @encryption.try do |encryption|
-        #  temp = Crypt.decrypt(
-        #    cipher: encryption[:decryptor],
-        #    data: temp
-        #  )
-        # end
 
         # Determine how much of a packet we have received
         length = PacketBuffer.new(buffer).read_var_int
@@ -184,8 +225,10 @@ class Server < ServerHandler
   end
 
   def close(id)
-    @clients[id].socket.close
-    @clients.delete(id)
+    unless @clients[id]?.nil?
+      @clients[id].socket.close
+      @clients.delete(id)
+    end
   end
 
   def keep_alive(id)
@@ -201,7 +244,7 @@ class Server < ServerHandler
           if keep_alive_id == @clients[id].keep_alive.id
             @clients[id].keep_alive.ready = false
             span = KEEP_ALIVE_INTERVAL - (Time.monotonic - @clients[id].keep_alive.timestamp)
-            sleep(span > Time::Span.zero ? span : Time::Span.zero)
+            sleep(span) if span > Time::Span.zero
             break
           end
         when timeout(@keep_alive)
@@ -258,26 +301,83 @@ class Server < ServerHandler
     end
 
     # Send authentication if encryption enabled
-    if @encryption
-      # todo: encryption
+    if encryption = @encryption
+      encryption_request = Login::C::EncryptionRequest.new(
+        server_id: "",
+        public_key_length: encryption[:public_key].size,
+        public_key: encryption[:public_key],
+        verify_token_length: encryption[:verify_token].size,
+        verify_token: encryption[:verify_token],
+      )
+
+      self.write(id, encryption_request)
     else
+      # Set ProtocolState to play
+      @clients[id].state = ProtocolState::Play
+
+      # Generate random UUID
       @clients[id].uuid = UUID.random.to_s
 
-      # Send login success with random UUID
+      # Send login success packet
       login_success = Login::C::LoginSuccess.new(
         uuid: @clients[id].uuid.not_nil!,
         username: @clients[id].username.not_nil!
       )
 
-      # Set ProtocolState to play
-      @clients[id].state = ProtocolState::Play
+      self.write(id, login_success)
 
       # Start keep alive packet exchange
       spawn {
         keep_alive(id)
       }
+    end
+  end
 
-      self.write(id, login_success)
+  def handle(id, packet : Login::S::EncryptionResponse)
+    @encryption.try do |encryption|
+      shared_secret = encryption[:pkey].private_decrypt(packet.shared_secret, LibCrypto::Padding::PKCS1_PADDING)
+      verify_token = encryption[:pkey].private_decrypt(packet.verify_token, LibCrypto::Padding::PKCS1_PADDING)
+
+      # Verify token match, encryption is working properly
+      if verify_token == encryption[:verify_token]
+        @clients[id].encryption = ClientData::Encryption.new(
+          encryptor: Crypt.encryptor("aes-128-cfb8", shared_secret),
+          decryptor: Crypt.decryptor("aes-128-cfb8", shared_secret),
+        )
+
+        # Query authentication server
+        session = (
+          if username = @clients[id].username
+            server_hash = Crypt.generate_server_hash("", shared_secret, encryption[:public_key]) # Empty server ID
+            ServerAuth.get_session?(username, server_hash)
+          end
+        )
+
+        # Session is valid; Send login success
+        unless session.nil?
+          @clients[id].username = session[:name]
+          @clients[id].uuid = session[:uuid].to_s
+          @clients[id].properties = session[:properties]
+
+          # Set ProtocolState to play
+          @clients[id].state = ProtocolState::Play
+
+          # Send login success packet
+          login_success = Login::C::LoginSuccess.new(
+            uuid: @clients[id].uuid.not_nil!,
+            username: @clients[id].username.not_nil!
+          )
+
+          self.write(id, login_success)
+
+          # Start keep alive packet exchange
+          spawn {
+            keep_alive(id)
+          }
+
+          Log.debug { "User \"#{session[:name]}\" joined with UUID \"#{@clients[id].uuid.not_nil!}\"" }
+        end
+      end
     end
   end
 

@@ -70,7 +70,7 @@ class Client < ClientHandler
     refresh_token = Disk.read_token?(email, password)
 
     # Authenticate using MSA
-    result = Authenticator.auth(email, refresh_token)
+    result = ClientAuth.auth(email, refresh_token)
 
     # Save the updated refresh token to disk cache
     Disk.write_token(email, password, result[:refresh_token])
@@ -160,6 +160,71 @@ class Client < ClientHandler
             self.handle(@state, formed)
             next
           end
+        end
+      end
+    end
+  end
+
+  def read
+    while socket = @socket
+      buffer = Bytes.empty
+      excess = false
+
+      # Continue reading incoming data
+      until socket.closed?
+        temp = Bytes.new(BUFFER_SIZE)
+
+        # Skip read to prevent lockup when no new data is available
+        unless excess
+          bytes_read = begin
+            socket.read(temp)
+          rescue ex : IO::Error
+            self.close
+            Log.debug { "Got IO::Error in TCPSocket::read: \"#{ex.to_s}\"" }
+            return
+          end
+
+          # Server has closed the connnection
+          if bytes_read == 0
+            self.close
+            raise ConnectionClosed.new("Connection was closed by the server (bytes_read == 0)")
+          end
+
+          temp = temp[0, bytes_read]
+
+          # Decrypt message with shared secret if encryption is enabled
+          @encryption.try do |encryption|
+            temp = Crypt.decrypt(
+              cipher: encryption[:decryptor],
+              data: temp
+            )
+          end
+
+          buffer += temp
+        else
+          repeating = false
+        end
+
+        # Determine how much of a packet we have received
+        length = PacketBuffer.new(buffer).read_var_int
+        length_size = PacketBuffer.var_int_size(length)
+        remaining = length - (buffer.size - length_size)
+
+        if remaining == 0
+          # Complete; Received packet length matches length header
+          self.handle(@state, buffer)
+          break
+        elsif remaining > 0
+          # Incomplete; Received packet is smaller than length header
+          next
+        else
+          # Excess; Received packet contains whole packet with excess data
+          excess = true
+          bytes_available = length_size + length
+          formed = buffer[0, bytes_available]
+          buffer = buffer[bytes_available..]
+          self.handle(@state, formed)
+          next
         end
       end
     end
@@ -262,7 +327,7 @@ class Client < ClientHandler
     # Authenticate with the server
     @authentication.try do |authentication|
       server_hash = Crypt.generate_server_hash(packet.server_id, shared_secret, packet.public_key)
-      Authenticator.server_auth(authentication[:uuid], authentication[:access_token], server_hash)
+      ClientAuth.server_auth(authentication[:uuid], authentication[:access_token], server_hash)
     end
 
     # Send the encrypted data to the server

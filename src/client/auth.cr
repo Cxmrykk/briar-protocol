@@ -2,7 +2,44 @@ require "http/client"
 require "json"
 require "log"
 
-module Authenticator
+module ServerAuth
+  extend self
+
+  alias Credentials = NamedTuple(
+    name: String,
+    uuid: UUID,
+    properties: Array(JSON::Any),
+  )
+
+  def get_session?(username : String, server_hash : String) : Credentials?
+    url = String.build do |str|
+      str << "https://sessionserver.mojang.com/session/minecraft/hasJoined?username="
+      str << username
+      str << "&serverId="
+      str << server_hash
+    end
+
+    response = HTTP::Client.get(url)
+
+    unless response.status.success?
+      Log.debug { "Client with username \"#{username}\": Session authentication failed; Body:\n#{response.body}" }
+      Log.debug { "Failed to authenticate with sessionserver: Got #{response.status_code} (#{response.status})" }
+      return
+    end
+
+    json = JSON.parse(response.body)
+
+    return Credentials.new(
+      name: json["name"].as_s,
+      uuid: UUID.new(json["id"].as_s), # Interpreted as hex string, no hyphens
+      properties: json["properties"].as_a
+    )
+  rescue JSON::ParseException
+    Log.debug { "Client \"#{username}\": Session authentication failed; Empty response from sessionserver" }
+  end
+end
+
+module ClientAuth
   extend self
 
   CLIENT_ID = "00000000441cc96b" # Nintendo Switch client ID
