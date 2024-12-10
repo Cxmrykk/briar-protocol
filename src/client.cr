@@ -106,67 +106,6 @@ class Client < ClientHandler
 
   def read
     while socket = @socket
-      until socket.closed?
-        buffer = Bytes.empty
-
-        # Continue reading incoming data
-        until socket.nil? || socket.closed?
-          temp = Bytes.new(BUFFER_SIZE)
-
-          # Read incoming TCP stream
-          bytes_read = begin
-            socket.read(temp)
-          rescue ex : IO::Error
-            self.close
-            Log.debug { "Got IO::Error in TCPSocket::read: \"#{ex.to_s}\"" }
-            return
-          end
-
-          # Server has closed the connnection
-          if bytes_read == 0
-            self.close
-            raise ConnectionClosed.new("Connection was closed by the server (bytes_read == 0)")
-          end
-
-          temp = temp[0, bytes_read]
-
-          # Decrypt message with shared secret if encryption is enabled
-          @encryption.try do |encryption|
-            temp = Crypt.decrypt(
-              cipher: encryption[:decryptor],
-              data: temp
-            )
-          end
-
-          buffer += temp
-
-          # Determine how much of a packet we have received
-          length = PacketBuffer.new(buffer).read_var_int
-          length_size = PacketBuffer.var_int_size(length)
-          remaining = length - (buffer.size - length_size) # length header value does not include length itself (but buffer itself does, so subtract it)
-
-          # Complete; Received packet length matches length header
-          if remaining == 0
-            self.handle(@state, buffer)
-            break
-            # Incomplete; Received packet is smaller than length header
-          elsif remaining > 0
-            next
-            # Excess; Received packet contains whole packet with excess data
-          else
-            bytes_available = length_size + length
-            formed = buffer[0, bytes_available]
-            buffer = buffer[bytes_available..]
-            self.handle(@state, formed)
-            next
-          end
-        end
-      end
-    end
-  end
-
-  def read
-    while socket = @socket
       buffer = Bytes.empty
       excess = false
 
