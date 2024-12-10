@@ -4,6 +4,10 @@ require "digest/sha256"
 require "base64"
 require "log"
 
+#
+# Currently only in use by the client; Stores login credentials (access token)
+# 
+
 module Disk
   extend self
 

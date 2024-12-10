@@ -5,12 +5,12 @@ require "socket"
 require "log"
 require "dns"
 
-require "../handler"
-require "../packets"
-require "../buffer"
+require "./handler"
+require "./packets"
+require "./buffer"
 
-require "../common/auth"
-require "../common/crypt"
+require "./common/auth"
+require "./common/crypt"
 
 class ClientData
   class KeepAlive

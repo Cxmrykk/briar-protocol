@@ -5,14 +5,13 @@ require "socket"
 require "log"
 require "dns"
 
-require "./disk"
+require "./handler"
+require "./packets"
+require "./buffer"
 
-require "../handler"
-require "../packets"
-require "../buffer"
-
-require "../common/auth"
-require "../common/crypt"
+require "./common/auth"
+require "./common/disk"
+require "./common/crypt"
 
 class Client < ClientHandler
   include Packets
