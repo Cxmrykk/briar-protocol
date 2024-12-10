@@ -8,8 +8,9 @@ require "dns"
 require "../handler"
 require "../packets"
 require "../buffer"
-require "../client/crypt"
-require "../client/auth"
+
+require "../common/auth"
+require "../common/crypt"
 
 #
 # Bare minimum server implements:
