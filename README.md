@@ -21,6 +21,7 @@ First, add the dependency to your `shards.yml`
 dependencies:
   briar-protocol:
     github: cxmrykk/briar-protocol
+    branch: 1.8
 ```
 
 Please have a look at the following:
