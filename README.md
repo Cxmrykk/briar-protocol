@@ -4,14 +4,14 @@
 
 ## Briar Protocol
 
-**Currently supporting minecraft `1.8.9`**
+**`1.21` is incomplete and WIP!**
 
-#### Features:
+#### Planned Features:
 
 - Connect to a minecraft server as a client
+- Server and proxy implementation
 - Protocol encryption and compression
 - Authentication with Microsoft
-- Event handler
 
 #### Usage
 
@@ -21,26 +21,16 @@ First, add the dependency to your `shards.yml`
 dependencies:
   briar-protocol:
     github: cxmrykk/briar-protocol
-    branch: 1.8
+    branch: 1.21
 ```
 
-Please have a look at the following:
+#### Development Goals:
 
-- [EXAMPLES.md](docs/EXAMPLES.md)
+- Small code base (use macros, avoid repitition)
+- Modular code (avoid nested dependencies)
+- Resilient error handling (failsafes and logging, rather than crashing)
 
-#### Goals:
+#### Compromises:
 
-For the current release:
-
-- Server implementation
-
-#### Deriving Projects:
-
-In the future, I may decide to work on:
-
-- Packet sniffer using the client/server implementation
-- High level client library
-
-#### Long Term:
-
-- Protocol support for the latest version
+- Only support the latest minor version (currently `1.21.5`)
+- No backwards compatibility
