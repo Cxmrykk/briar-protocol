@@ -49,12 +49,15 @@ struct PacketBuffer
   # new 1.21.5 array types:
 
   define_array_functions(TextureProperty, read_texture_property, write_texture_property)
+  define_array_functions(KnownDataPack, read_known_data_pack, write_known_data_pack)
+  define_array_functions(RegistryData, read_registry_data, write_registry_data)
 
   #
   # Prefixed Optional Types
   #
 
   define_prefixed_optional_functions(String, read_string, write_string)
+  define_prefixed_optional_functions(Nbt::Value, read_nbt, write_nbt)
 
   #
   # Primitive Data Types
@@ -1077,4 +1080,30 @@ def write_texture_property(texture_property : TextureProperty)
   write_string(texture_property[:name])
   write_string(texture_property[:value])
   write_string_prefixed_optional(texture_property[:signature])
+end
+
+def read_known_data_pack : KnownDataPack
+  {
+    namespace: read_string,
+    id:        read_string,
+    version:   read_string,
+  }
+end
+
+def write_known_data_pack(known_data_pack : KnownDataPack)
+  write_string(known_data_pack[:namespace])
+  write_string(known_data_pack[:id])
+  write_string(known_data_pack[:version])
+end
+
+def read_registry_data : RegistryData
+  {
+    entry_id: read_string,
+    data:     read_nbt_prefixed_optional,
+  }
+end
+
+def write_registry_data(registry_data : RegistryData)
+  write_string(registry_data[:entry_id])
+  write_nbt_prefixed_optional(registry_data[:data])
 end
