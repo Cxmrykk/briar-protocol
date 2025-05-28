@@ -46,6 +46,16 @@ struct PacketBuffer
   define_array_functions(PlayerList::Property, read_pl_property, write_pl_property)
   define_array_functions(PlayerList::Value, read_player, write_player, action)
 
+  # new 1.21.5 array types:
+
+  define_array_functions(TextureProperty, read_texture_property, write_texture_property)
+
+  #
+  # Prefixed Optional Types
+  #
+
+  define_prefixed_optional_functions(String, read_string, write_string)
+
   #
   # Primitive Data Types
   #
@@ -1047,4 +1057,24 @@ def write_title_action(action : Title::Action, action_id : Int32)
   in .hide?, .reset?
     # No fields to write
   end
+end
+
+#
+# #
+# # -- 1.21.5 new datatypes start here -- #
+# #
+#
+
+def read_texture_property : TextureProperty
+  {
+    name:      read_string,
+    value:     read_string,
+    signature: read_string_prefixed_optional,
+  }
+end
+
+def write_texture_property(texture_property : TextureProperty)
+  write_string(texture_property[:name])
+  write_string(texture_property[:value])
+  write_string_prefixed_optional(texture_property[:signature])
 end

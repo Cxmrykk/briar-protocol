@@ -13,3 +13,18 @@ macro define_array_functions(type, read_func, write_func, *extra_params)
     array.each { |element| {{write_func.id}}(element{% if extra_params.size > 0 %}, {{extra_params.join(", ").id}}{% end %}) }
   end
 end
+
+macro define_prefixed_optional_functions(type, read_func, write_func, *extra_params)
+  def {{read_func}}_prefixed_optional({% if extra_params.size > 0 %}, {{extra_params.join(", ").id}}{% end %}) : {{type}} | Nil
+    if read_boolean
+      {{read_func}}({% if extra_params.size > 0 %}{{extra_params.join(", ").id}}{% end %})
+    else
+      nil
+    end
+  end
+
+  def {{write_func}}_prefixed_optional(value : {{type}} | Nil{% if extra_params.size > 0 %}, {{extra_params.join(", ").id}}{% end %})
+    write_boolean(!value.nil?)
+    {{write_func}}({% if extra_params.size > 0 %}, {{extra_params.join(", ").id}}{% end %})
+  end
+end

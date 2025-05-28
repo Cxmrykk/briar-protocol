@@ -37,7 +37,7 @@ module Packets
         {uuid, String, string},
         {username, String, string},
         {properties_length, Int32, var_int},
-        {properties, Array(Property), property_array, @properties_length <= 16, "@properties_length", "raise \"LoginSuccess: 'properties_length' was more than 16!\""}
+        {properties, Array(TextureProperty), texture_property_array, @properties_length <= 16, "@properties_length", "raise \"LoginSuccess: 'properties_length' was more than 16!\""}
       ])
 
       define_packet(EnableCompression, 0x03, [

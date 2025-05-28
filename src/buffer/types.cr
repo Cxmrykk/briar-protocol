@@ -297,3 +297,9 @@ module Title
 
   alias Action = Action_::Value
 end
+
+alias TextureProperty = NamedTuple(
+  name: String,
+  value: String,
+  signature: String?
+)
