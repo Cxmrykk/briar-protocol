@@ -26,7 +26,7 @@ module Packets
   module Login
     module C
       define_packet(EncryptionRequest, 0x01, [
-        {server_id, String, string, @server_id <= 20, @server_id, "raise \"EncryptionRequest: 'server_id' was more than 20 chars!\""},
+        {server_id, String, string},
         {public_key_length, Int32, var_int},
         {public_key, Bytes, byte_array, @public_key_length >= 0, "@public_key_length", "raise \"EncryptionRequest: Public Key length was negative!\""},
         {verify_token_length, Int32, var_int},
@@ -36,8 +36,7 @@ module Packets
       define_packet(LoginSuccess, 0x02, [
         {uuid, String, string},
         {username, String, string},
-        {properties_length, Int32, var_int},
-        {properties, Array(TextureProperty), texture_property_array, @properties_length <= 16, "@properties_length", "raise \"LoginSuccess: 'properties_length' was more than 16!\""},
+        {properties, Array(TextureProperty), texture_property_array_prefixed},
       ])
 
       define_packet(EnableCompression, 0x03, [
@@ -47,7 +46,7 @@ module Packets
 
     module S
       define_packet(LoginStart, 0x00, [
-        {name, String, string, @name <= 16, @name, "raise \"LoginStart: 'name' was more than 16 chars!\""},
+        {name, String, string},
         {uuid, UUID, uuid},
       ])
 
@@ -70,19 +69,16 @@ module Packets
       ])
 
       define_packet(FeatureFlags, 0x0C, [
-        {features_length, Int32, var_int},
-        {features, Array(String), string_array, @features_length >= 0, "@features_length", "raise \"FeatureFlags: 'features_length' was negative!\""},
+        {features, Array(String), string_array_prefixed},
       ])
 
       define_packet(KnownPacksCB, 0x0E, [
-        {known_packs_length, Int32, var_int},
-        {known_packs, Array(KnownDataPack), known_data_pack_array, @known_packs_length >= 0, "@known_packs_length", "raise \"KnownPacksCB: 'known_packs_length' was negative!\""},
+        {known_packs, Array(KnownDataPack), known_data_pack_array_prefixed},
       ])
 
       define_packet(RegistryData, 0x0E, [
         {registry_id, String, string},
-        {entries_length, Int32, var_int},
-        {entries, Array(RegistryData), registry_data_array, @entries_length >= 0, "@entries_length", "raise \"RegistryData: 'entries_length' was negative!\""},
+        {entries, Array(RegistryData), registry_data_array_prefixed},
       ])
     end
 
@@ -105,8 +101,7 @@ module Packets
       ])
 
       define_packet(KnownPacksSB, 0x07, [
-        {known_packs_length, Int32, var_int},
-        {known_packs, Array(KnownDataPack), known_data_pack_array, @known_packs_length >= 0, "@known_packs_length", "raise \"KnownPacksCB: 'known_packs_length' was negative!\""},
+        {known_packs, Array(KnownDataPack), known_data_pack_array_prefixed},
       ])
     end
   end
