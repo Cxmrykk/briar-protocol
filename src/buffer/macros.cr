@@ -32,7 +32,7 @@ macro define_array_prefixed_functions(type, read_func, write_func, *extra_params
 end
 
 #
-# -- Prefixed Optional
+# -- Prefixed Optional --
 #
 macro define_prefixed_optional_functions(type, read_func, write_func, *extra_params)
   def {{read_func}}_prefixed_optional({% if extra_params.size > 0 %}, {{extra_params.join(", ").id}}{% end %}) : {{type}} | Nil
@@ -50,10 +50,8 @@ macro define_prefixed_optional_functions(type, read_func, write_func, *extra_par
 end
 
 #
-# -- Generic Structured Data
+# -- Generic Structured Data --
 #
-
-# {entity_id, String, string}
 
 macro define_generic_structured_data(name, type, definitions = [] of Nil)
   alias {{type}} = NamedTuple({% for definition in definitions %}
