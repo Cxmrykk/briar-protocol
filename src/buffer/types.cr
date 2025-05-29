@@ -297,18 +297,3 @@ module Title
 
   alias Action = Action_::Value
 end
-
-alias TextureProperty = NamedTuple(
-  name: String,
-  value: String,
-  signature: String?)
-
-alias KnownDataPack = NamedTuple(
-  namespace: String,
-  id: String,
-  version: String,
-)
-
-alias RegistryData = NamedTuple(
-  entry_id: String,
-  data: Nbt::Value?)

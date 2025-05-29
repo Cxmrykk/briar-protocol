@@ -46,11 +46,14 @@ struct PacketBuffer
   define_array_functions(PlayerList::Property, read_pl_property, write_pl_property)
   define_array_functions(PlayerList::Value, read_player, write_player, action)
 
-  # new 1.21.5 array types:
+  #
+  # Prefixed Array Types
+  #
 
-  define_array_functions(TextureProperty, read_texture_property, write_texture_property)
-  define_array_functions(KnownDataPack, read_known_data_pack, write_known_data_pack)
-  define_array_functions(RegistryData, read_registry_data, write_registry_data)
+  define_array_prefixed_functions(String, read_string, write_string)
+  define_array_prefixed_functions(TextureProperty, read_texture_property, write_texture_property)
+  define_array_prefixed_functions(KnownDataPack, read_known_data_pack, write_known_data_pack)
+  define_array_prefixed_functions(RegistryData, read_registry_data, write_registry_data)
 
   #
   # Prefixed Optional Types
@@ -1068,42 +1071,19 @@ end
 # #
 #
 
-def read_texture_property : TextureProperty
-  {
-    name:      read_string,
-    value:     read_string,
-    signature: read_string_prefixed_optional,
-  }
-end
+define_generic_structured_data(texture_property, TextureProperty, [
+  {name, String, string},
+  {value, String, string},
+  {signature, String, string_prefixed_optional},
+])
 
-def write_texture_property(texture_property : TextureProperty)
-  write_string(texture_property[:name])
-  write_string(texture_property[:value])
-  write_string_prefixed_optional(texture_property[:signature])
-end
+define_generic_structured_data(known_data_pack, KnownDataPack, [
+  {namespace, String, string},
+  {id, String, string},
+  {version, String, string},
+])
 
-def read_known_data_pack : KnownDataPack
-  {
-    namespace: read_string,
-    id:        read_string,
-    version:   read_string,
-  }
-end
-
-def write_known_data_pack(known_data_pack : KnownDataPack)
-  write_string(known_data_pack[:namespace])
-  write_string(known_data_pack[:id])
-  write_string(known_data_pack[:version])
-end
-
-def read_registry_data : RegistryData
-  {
-    entry_id: read_string,
-    data:     read_nbt_prefixed_optional,
-  }
-end
-
-def write_registry_data(registry_data : RegistryData)
-  write_string(registry_data[:entry_id])
-  write_nbt_prefixed_optional(registry_data[:data])
-end
+define_generic_structured_data(registry_data, RegistryData, [
+  {entry_id, String, string},
+  {data, Nbt::Value?, nbt_prefixed_optional},
+])
