@@ -297,3 +297,59 @@ module Title
 
   alias Action = Action_::Value
 end
+
+alias IDSet = NamedTuple(
+  type: Int32,
+  tag_name: String?,
+  entries: Array(Int32)?,
+)
+
+module SlotDisplay
+  alias Value = NamedTuple(
+    type: Type,
+    data: Data,
+  )
+
+  enum Type
+    Empty
+    AnyFuel
+    Item
+    ItemStack
+    Tag
+    SmithingTrim
+    WithRemainder
+    Composite
+  end
+
+  alias Data = Item |
+               ItemStack |
+               Tag |
+               SmithingTrim |
+               WithRemainder |
+               Composite |
+               Nil
+
+  # -- Slot Display Data Types --
+
+  alias Item = NamedTuple(
+    item_type: Int32)
+
+  alias ItemStack = NamedTuple(
+    item_stack: Slot)
+
+  alias Tag = NamedTuple(
+    tag: String)
+
+  alias SmithingTrim = NamedTuple(
+    base: Value,
+    material: Value,
+    pattern: Value)
+
+  alias WithRemainder = NamedTuple(
+    ingredient: Value,
+    remainder: Value)
+
+  alias Composite = NamedTuple(
+    option_count: Int32,
+    options: Array(Value))
+end

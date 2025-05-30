@@ -54,6 +54,8 @@ struct PacketBuffer
   define_array_prefixed_functions(TextureProperty, read_texture_property, write_texture_property)
   define_array_prefixed_functions(KnownDataPack, read_known_data_pack, write_known_data_pack)
   define_array_prefixed_functions(RegistryData, read_registry_data, write_registry_data)
+  define_array_prefixed_functions(TagArray, read_tag_array, write_tag_array)
+  define_array_prefixed_functions(UpdatedTags, read_updated_tags, write_updated_tags)
 
   #
   # Prefixed Optional Types
@@ -1086,4 +1088,102 @@ define_generic_structured_data(known_data_pack, KnownDataPack, [
 define_generic_structured_data(registry_data, RegistryData, [
   {entry_id, String, string},
   {data, Nbt::Value?, nbt_prefixed_optional},
+])
+
+define_generic_structured_data(tag_array, TagArray, [
+  {tag_name, String, string},
+  {entries, Array(Int32), var_int_array_prefixed},
+])
+
+define_generic_structured_data(updated_tags, UpdatedTags, [
+  {registry, String, string},
+  {tags, TagArray, tag_array_prefixed},
+])
+
+define_generic_structured_data(property_sets, PropertySets, [
+  {id, String, string},
+  {items, Array(Int32), var_int_array_prefixed},
+])
+
+def read_id_set : IDSet
+  type = read_var_int
+  {
+    type:     type,
+    tag_name: type == 0 ? nil : read_string,
+    entries:  type == 0 ? nil : read_var_int_array(type - 1),
+  }
+end
+
+def write_id_set(id_set : IDSet)
+  write_var_int(id_set[:type])
+  write_string(id_set[:tag_name]) unless type == 0
+  write_var_int_array(id_set[:entries]) unless type == 0
+end
+
+def read_slot_display_data(type : Int32) : SlotDisplay::Data
+  case SlotDisplay::Type.new(type)
+  in .empty?, .any_fuel?
+    nil
+  in .item?
+    {item_type: read_var_int}
+  in .item_stack?
+    {item_stack: read_slot}
+  in .tag?
+    {tag: read_string}
+  in .smithing_trim?
+    {
+      base:     read_slot_display,
+      material: read_slot_display,
+      pattern:  read_slot_display,
+    }
+  in .with_remainder?
+    {
+      ingredient: read_slot_display,
+      remainder:  read_slot_display,
+    }
+  in .composite?
+    {
+      option_count: read_var_int,
+      options:      read_slot_display_array_prefixed,
+    }
+  end
+end
+
+def write_slot_display_data(data : SlotDisplay::Data)
+  case data
+  when .item?
+    write_var_int(data[:item_type])
+  when .item_stack?
+    write_slot(data[:item_stack])
+  when .tag?
+    write_string(data[:tag])
+  when .smithing_trim?
+    write_slot_display(data[:base])
+    write_slot_display(data[:material])
+    write_slot_display(data[:pattern])
+  when .with_remainder?
+    write_slot_display(data[:ingredient])
+    write_slot_display(data[:remainder])
+  when .composite?
+    write_var_int(data[:option_count])
+    write_slot_display_array_prefixed(data[:options])
+  end
+end
+
+def read_slot_display : SlotDisplay::Value
+  type = read_var_int
+  {
+    type: type,
+    data: read_slot_display_data(type),
+  }
+end
+
+def write_slot_display(slot_display : SlotDisplay::Value)
+  write_var_int(slot_display[:type])
+  write_slot_display_data(slot_display[:data])
+end
+
+define_generic_structured_data(stone_cutter_recipe, StoneCutterRecipe, [
+  {ingredients, IDSet, id_set},
+  {slot_display, SlotDisplay, slot_display},
 ])
